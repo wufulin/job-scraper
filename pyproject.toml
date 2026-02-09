@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "job-scraper"
+version = "0.1.0"
+description = "A Python job scraper MVP for remote AI/tech positions"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Job Scraper Team"}
+]
+keywords = ["scraper", "jobs", "remote", "AI"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "httpx>=0.27.0",
+    "beautifulsoup4>=4.12.0",
+    "feedparser>=6.0.0",
+    "fake-useragent>=1.5.0",
+    "pyyaml>=6.0",
+    "loguru>=0.7.0",
+    "pydantic>=2.0",
+    "chardet>=5.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.setuptools]
+packages = ["scraper", "scraper.adapters", "scraper.utils", "config"]
+
+[tool.setuptools.package-data]
+config = ["*.yaml"]

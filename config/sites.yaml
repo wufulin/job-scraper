@@ -1,0 +1,32 @@
+sites:
+  remoteok:
+    name: "RemoteOK"
+    url: "https://remoteok.com/api"
+    adapter: "api"
+    enabled: true
+    skip_location_match: true
+    rate_limit_seconds: 2
+    headers:
+      User-Agent: "Mozilla/5.0"
+
+  eleduck:
+    name: "电鸭"
+    url: "https://svc.eleduck.com/api/v1/posts"
+    adapter: "api"
+    enabled: true
+    skip_location_match: false
+    rate_limit_seconds: 2
+    params:
+      category: 5
+    headers:
+      User-Agent: "Mozilla/5.0"
+
+  weworkremotely:
+    name: "WeWorkRemotely"
+    url: "https://weworkremotely.com/remote-jobs.rss"
+    adapter: "rss"
+    enabled: true
+    skip_location_match: true
+    rate_limit_seconds: 2
+    headers:
+      User-Agent: "Mozilla/5.0"
