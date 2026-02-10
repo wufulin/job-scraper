@@ -676,7 +676,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ### Phase 2: Supabase Storage Migration
 
-- [ ] 5. Supabase Project Setup + Schema Migration
+- [x] 5. Supabase Project Setup + Schema Migration
 
   **What to do**:
   - Document Supabase project setup steps (manual: create project, get URL + keys)
