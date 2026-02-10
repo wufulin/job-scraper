@@ -34,7 +34,9 @@ sites:
 
   workgo:
     name: "WorkGo"
-    url: "https://www.workgo.com/api/jobs"
+    url: "https://workgo.ai"
+    api_url: "https://api.workgo.ai/auth/jobs/all"
+    clerk_base: "https://clerk.workgo.ai"
     adapter: "api"
     enabled: false
     skip_location_match: true
