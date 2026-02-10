@@ -4,9 +4,12 @@ Python CLI tool that scrapes remote AI/ML job postings from multiple sources, fi
 
 ## Features
 
-- **Multiple data sources**: Scrapes from RemoteOK, Eleduck (电鸭), and WeWorkRemotely
+- **7 data sources**: Scrapes from RemoteOK, Eleduck, WeWorkRemotely, V2EX, Arc.dev, WorkGo, and 远程.work
+- **Async architecture**: Concurrent scraping with asyncio, httpx.AsyncClient, and aiosqlite for high throughput
+- **Cross-site deduplication**: Fuzzy matching removes duplicate postings across different sources
+- **Browser automation**: Playwright-based scraping for JavaScript-heavy sites (Arc.dev, WorkGo)
 - **Smart keyword matching**: Supports CJK (Chinese, Japanese, Korean) characters for flexible job filtering
-- **SQLite with upsert deduplication**: Efficient storage with automatic duplicate detection
+- **Async SQLite storage**: aiosqlite-based storage with upsert deduplication
 - **JSON export**: Export matched jobs to JSON format for further analysis
 - **Configurable keywords**: Customize job title and description matching via YAML config
 - **Graceful interruption**: Ctrl+C handling saves partial results before exit
@@ -14,22 +17,27 @@ Python CLI tool that scrapes remote AI/ML job postings from multiple sources, fi
 
 ## Data Sources
 
-| Source | Type | Coverage |
-|--------|------|----------|
-| RemoteOK | JSON API | Global remote jobs |
-| Eleduck (电鸭) | JSON API | Chinese remote jobs |
-| WeWorkRemotely | RSS Feed | English remote jobs |
+| Source | Type | Adapter | Status |
+|--------|------|---------|--------|
+| RemoteOK | JSON API | `api.py` | Enabled |
+| Eleduck (电鸭) | JSON API | `api.py` | Enabled |
+| WeWorkRemotely | RSS Feed | `rss.py` | Enabled |
+| V2EX | Hybrid HTML+API | `hybrid.py` | Enabled |
+| Arc.dev | Browser (Playwright) | `browser.py` | Enabled |
+| WorkGo | Browser (Playwright) | `browser.py` | Disabled |
+| 远程.work | HTML Scraping | `html.py` | Disabled |
 
 ## Quick Start
 
 ### Requirements
 
 - Python 3.11 or higher
+- (Optional) Playwright browsers for Arc.dev/WorkGo scraping: `playwright install chromium`
 
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/job-scraper.git
+git clone https://github.com/wufulin/job-scraper.git
 cd job-scraper
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -66,6 +74,10 @@ Scrape from a specific site:
 python main.py scrape --site remoteok
 python main.py scrape --site eleduck
 python main.py scrape --site weworkremotely
+python main.py scrape --site v2ex
+python main.py scrape --site arcdev
+python main.py scrape --site workgo
+python main.py scrape --site yuancheng
 ```
 
 Dry-run mode (fetch and match without saving):
@@ -125,6 +137,20 @@ weworkremotely:
   adapter: rss
   url: https://weworkremotely.com/remote-jobs.rss
   skip_location_match: true
+
+v2ex:
+  enabled: true
+  adapter: hybrid
+  url: https://www.v2ex.com/go/remote
+  api_base: https://www.v2ex.com/api/topics/show.json
+  rate_limit_seconds: 6
+  max_pages: 3
+
+arcdev:
+  enabled: true
+  adapter: browser
+  url: https://arc.dev/remote-jobs
+  skip_location_match: true
 ```
 
 ### Keywords Configuration
@@ -153,37 +179,52 @@ match_rules:
 
 To add a new keyword, simply append it to the appropriate group in `config/keywords.yaml`. Short English keywords like "AI" and "NLP" use word-boundary matching to prevent false positives (e.g., "AI" won't match "email"). CJK keywords use substring matching.
 
+### Environment Variables
+
+The `.env.example` file lists environment variables: `PROXY_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LOG_LEVEL` (planned for future features), and `WORKGO_EMAIL`/`WORKGO_PASSWORD` (WorkGo authentication credentials).
+
 ## Project Structure
 
 ```
 job-scraper/
-├── main.py                # CLI entry point (argparse)
+├── main.py                # CLI entry point (argparse + asyncio.run)
 ├── pyproject.toml         # Project metadata and dependencies
+├── CLAUDE.md              # Claude Code project context
 ├── .gitignore
-├── .env.example           # Environment variable template
+├── .env.example           # Environment variables (WorkGo auth, planned features)
 ├── config/
-│   ├── sites.yaml         # Data source configuration
+│   ├── sites.yaml         # Data source configuration (7 sites)
 │   └── keywords.yaml      # Keyword matching rules
 ├── scraper/
 │   ├── models.py          # Pydantic JobPosting model
 │   ├── logger.py          # Loguru logging setup
-│   ├── orchestrator.py    # Main scraping pipeline
+│   ├── orchestrator.py    # Async scraping pipeline with dedup
 │   ├── adapters/
-│   │   ├── base.py        # BaseAdapter ABC
+│   │   ├── base.py        # BaseAdapter ABC (async)
 │   │   ├── api.py         # RemoteOKAdapter, EleduckAdapter
-│   │   └── rss.py         # WeWorkRemotelyAdapter
+│   │   ├── rss.py         # WeWorkRemotelyAdapter
+│   │   ├── browser.py     # WorkGoAdapter, ArcDevAdapter (Playwright)
+│   │   ├── hybrid.py      # V2EXAdapter (HTML + API)
+│   │   └── html.py        # YuanchengAdapter (BeautifulSoup)
 │   └── utils/
 │       ├── matcher.py     # Keyword matching with CJK support
-│       └── storage.py     # SQLite storage with upsert
-├── tests/                 # 128 tests
+│       ├── storage.py     # Async SQLite storage (aiosqlite)
+│       └── dedup.py       # Cross-site deduplication
+├── tests/                 # 314 tests
 │   ├── test_matcher.py
 │   ├── test_storage.py
 │   ├── test_integration.py
+│   ├── test_dedup.py
 │   ├── test_adapters/
 │   │   ├── test_remoteok.py
 │   │   ├── test_eleduck.py
-│   │   └── test_wwr.py
-│   └── fixtures/          # Sample API/RSS responses
+│   │   ├── test_wwr.py
+│   │   ├── test_workgo.py
+│   │   ├── test_v2ex.py
+│   │   ├── test_arcdev.py
+│   │   └── test_yuancheng.py
+│   └── fixtures/          # Sample API/RSS/HTML responses
+├── docs/                  # Design documents (Chinese)
 ├── data/                  # SQLite DB and exports (gitignored)
 └── logs/                  # Log files (gitignored)
 ```
@@ -191,23 +232,26 @@ job-scraper/
 ## Architecture
 
 ```
-CLI (main.py)
+CLI (main.py + asyncio.run)
     ↓
-Orchestrator (orchestrator.py)
+Orchestrator (async, asyncio.gather with semaphore)
     ↓
-Adapters (remoteok, eleduck, weworkremotely)
+Adapters (7 sources: API, RSS, Browser, Hybrid, HTML)
     ↓
 Matcher (keyword filtering)
     ↓
-Storage (SQLite with upsert)
+Cross-site Dedup (DedupManager)
+    ↓
+Storage (async SQLite via aiosqlite)
 ```
 
 The orchestrator coordinates the scraping pipeline:
 1. Initializes adapters for enabled sources
-2. Fetches jobs from each source
+2. Fetches jobs concurrently (asyncio.gather with semaphore of 3)
 3. Applies keyword matching to filter results
-4. Deduplicates and stores in SQLite
-5. Returns summary statistics
+4. Runs cross-site deduplication (fuzzy company+title matching)
+5. Stores deduplicated results in async SQLite
+6. Returns summary statistics
 
 ## Testing
 
@@ -217,33 +261,39 @@ Run the test suite:
 python -m pytest tests/ -v
 ```
 
-The project includes 128 tests covering adapters, matching logic, storage operations, and CLI commands. Tests complete in approximately 2.9 seconds.
+The project includes 314 tests covering all 7 adapters, matching logic, storage operations, deduplication, integration tests, and CLI commands. Tests complete in approximately 9 seconds.
 
 ## Tech Stack
 
-- **httpx**: Synchronous HTTP client for API requests
+- **httpx**: Async HTTP client (httpx.AsyncClient) for API requests
+- **aiosqlite**: Async SQLite database access
+- **playwright**: Browser automation for JavaScript-heavy sites
 - **feedparser**: RSS feed parsing for WeWorkRemotely
+- **beautifulsoup4**: HTML parsing for V2EX and Yuancheng adapters
 - **Pydantic v2**: Data validation and serialization
-- **SQLite**: Lightweight database for job storage
 - **loguru**: Structured logging
 - **fake-useragent**: Rotating user agents for requests
 - **chardet**: Character encoding detection
-- **beautifulsoup4**: HTML parsing (optional, for future enhancements)
 - **pyyaml**: YAML configuration parsing
+- **pytest-asyncio**: Async test support
 
 ## Roadmap
 
-### Phase 1 (Current)
+### Phase 1 (Complete)
 - ✓ RemoteOK, Eleduck, WeWorkRemotely sources
 - ✓ Keyword matching with CJK support
 - ✓ SQLite storage with deduplication
 - ✓ JSON export
 - ✓ CLI with scrape/stats/export commands
 
-### Phase 2
-- V2EX job board integration
-- Arc.dev integration
-- Asynchronous scraping for improved performance
+### Phase 2 (Complete)
+- ✓ Async migration (httpx.AsyncClient + aiosqlite)
+- ✓ V2EX job board integration (hybrid HTML+API)
+- ✓ Arc.dev integration (Playwright browser automation)
+- ✓ WorkGo integration (Playwright with Clerk auth)
+- ✓ 远程.work integration (HTML scraping, disabled — domain redirects)
+- ✓ Cross-site deduplication
+- ✓ Concurrent scraping with asyncio.gather
 
 ### Phase 3
 - Email/Slack notifications for new matches
