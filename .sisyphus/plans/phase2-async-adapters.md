@@ -71,11 +71,11 @@ Migrate the scraper to async architecture and expand from 3 to 7 data sources, w
 - New tests for each adapter + dedup + async integration
 
 ### Definition of Done
-- [ ] All existing 128 tests still pass (after async migration)
-- [ ] All new adapter tests pass
-- [ ] `python main.py scrape --verbose` fetches from all 7 sources
-- [ ] `python main.py stats` shows data from all active sources
-- [ ] Cross-site dedup removes duplicate jobs across sources
+- [x] All existing 128 tests still pass (after async migration)
+- [x] All new adapter tests pass
+- [x] `python main.py scrape --verbose` fetches from all 7 sources
+- [x] `python main.py stats` shows data from all active sources
+- [x] Cross-site dedup removes duplicate jobs across sources
 
 ### Must Have
 - Async migration of ALL existing adapters (not just new ones)
@@ -205,12 +205,12 @@ Wave 3 (Integration — After Wave 2):
 - `main.py:132-137` — `--site` argparse choices
 
 **Acceptance Criteria**:
-- [ ] `python -c "from scraper.models import JobPosting; JobPosting(id='x',title='t',url='u',source='workgo',first_seen=...,last_seen=...,last_updated=...)"` → no validation error
-- [ ] Same for sources: `v2ex`, `arcdev`, `yuancheng`
-- [ ] `python -m pytest tests/ -v` → all 128 existing tests still pass
-- [ ] `playwright install chromium` completes without error
-- [ ] `python -c "import aiosqlite; print('OK')"` → prints OK
-- [ ] `.env.example` contains WORKGO_EMAIL and WORKGO_PASSWORD lines
+- [x] `python -c "from scraper.models import JobPosting; JobPosting(id='x',title='t',url='u',source='workgo',first_seen=...,last_seen=...,last_updated=...)"` → no validation error
+- [x] Same for sources: `v2ex`, `arcdev`, `yuancheng`
+- [x] `python -m pytest tests/ -v` → all 128 existing tests still pass
+- [x] `playwright install chromium` completes without error
+- [x] `python -c "import aiosqlite; print('OK')"` → prints OK
+- [x] `.env.example` contains WORKGO_EMAIL and WORKGO_PASSWORD lines
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -307,13 +307,13 @@ Scenario: Existing tests unbroken
 - pytest-asyncio docs: https://pytest-asyncio.readthedocs.io/en/latest/
 
 **Acceptance Criteria**:
-- [ ] `python -m pytest tests/ -v` → ALL 128 tests pass (no regressions)
-- [ ] `python main.py scrape --verbose` → fetches from all 3 existing sources (async)
-- [ ] `python main.py stats` → shows correct statistics
-- [ ] `python main.py export --format json` → creates valid JSON export
-- [ ] No sync httpx or sqlite3 imports remain in scraper/ (only aiosqlite, httpx.AsyncClient)
-- [ ] `grep -r "httpx.Client" scraper/` → 0 matches (only AsyncClient)
-- [ ] `grep -r "import sqlite3" scraper/` → 0 matches (only aiosqlite)
+- [x] `python -m pytest tests/ -v` → ALL 128 tests pass (no regressions)
+- [x] `python main.py scrape --verbose` → fetches from all 3 existing sources (async)
+- [x] `python main.py stats` → shows correct statistics
+- [x] `python main.py export --format json` → creates valid JSON export
+- [x] No sync httpx or sqlite3 imports remain in scraper/ (only aiosqlite, httpx.AsyncClient)
+- [x] `grep -r "httpx.Client" scraper/` → 0 matches (only AsyncClient)
+- [x] `grep -r "import sqlite3" scraper/` → 0 matches (only aiosqlite)
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -410,13 +410,13 @@ Scenario: No sync code remains
 - `.env.example` — WORKGO_EMAIL, WORKGO_PASSWORD variables
 
 **Acceptance Criteria**:
-- [ ] `scraper/adapters/browser.py` exists with WorkGoAdapter class
-- [ ] `tests/test_adapters/test_workgo.py` exists with TDD tests
-- [ ] `tests/fixtures/workgo_sample.json` exists with sample data
-- [ ] `python -m pytest tests/test_adapters/test_workgo.py -v` → all tests pass
-- [ ] `python -m pytest tests/ -v` → all tests pass (no regressions)
-- [ ] WorkGoAdapter reads WORKGO_EMAIL and WORKGO_PASSWORD from environment
-- [ ] WorkGoAdapter handles missing credentials gracefully (logs error, returns [])
+- [x] `scraper/adapters/browser.py` exists with WorkGoAdapter class
+- [x] `tests/test_adapters/test_workgo.py` exists with TDD tests
+- [x] `tests/fixtures/workgo_sample.json` exists with sample data
+- [x] `python -m pytest tests/test_adapters/test_workgo.py -v` → all tests pass
+- [x] `python -m pytest tests/ -v` → all tests pass (no regressions)
+- [x] WorkGoAdapter reads WORKGO_EMAIL and WORKGO_PASSWORD from environment
+- [x] WorkGoAdapter handles missing credentials gracefully (logs error, returns [])
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -497,12 +497,12 @@ Scenario: Full test suite unbroken
 - `tests/test_adapters/test_wwr.py` — test pattern for adapters with fixture data
 
 **Acceptance Criteria**:
-- [ ] `scraper/adapters/hybrid.py` exists with V2EXAdapter
-- [ ] `tests/test_adapters/test_v2ex.py` exists with TDD tests
-- [ ] `tests/fixtures/v2ex_listing.html` and `tests/fixtures/v2ex_topic.json` exist
-- [ ] `python -m pytest tests/test_adapters/test_v2ex.py -v` → all tests pass
-- [ ] `python -m pytest tests/ -v` → all tests pass (no regressions)
-- [ ] Rate limiting respected (delay between API calls)
+- [x] `scraper/adapters/hybrid.py` exists with V2EXAdapter
+- [x] `tests/test_adapters/test_v2ex.py` exists with TDD tests
+- [x] `tests/fixtures/v2ex_listing.html` and `tests/fixtures/v2ex_topic.json` exist
+- [x] `python -m pytest tests/test_adapters/test_v2ex.py -v` → all tests pass
+- [x] `python -m pytest tests/ -v` → all tests pass (no regressions)
+- [x] Rate limiting respected (delay between API calls)
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -572,12 +572,12 @@ Scenario: HTML parsing extracts topic IDs
 - `tests/test_adapters/test_wwr.py` — test patterns
 
 **Acceptance Criteria**:
-- [ ] `scraper/adapters/html.py` exists with YuanchengAdapter
-- [ ] `tests/test_adapters/test_yuancheng.py` exists with TDD tests
-- [ ] `tests/fixtures/yuancheng_listing.html` exists
-- [ ] `python -m pytest tests/test_adapters/test_yuancheng.py -v` → all tests pass
-- [ ] `python -m pytest tests/ -v` → all tests pass (no regressions)
-- [ ] Adapter handles empty response gracefully (returns [])
+- [x] `scraper/adapters/html.py` exists with YuanchengAdapter
+- [x] `tests/test_adapters/test_yuancheng.py` exists with TDD tests
+- [x] `tests/fixtures/yuancheng_listing.html` exists
+- [x] `python -m pytest tests/test_adapters/test_yuancheng.py -v` → all tests pass
+- [x] `python -m pytest tests/ -v` → all tests pass (no regressions)
+- [x] Adapter handles empty response gracefully (returns [])
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -651,11 +651,11 @@ Scenario: Empty response handled gracefully
 - `tests/test_adapters/test_workgo.py` — Playwright test mocking pattern (from Task 3)
 
 **Acceptance Criteria**:
-- [ ] `ArcDevAdapter` class added to `scraper/adapters/browser.py`
-- [ ] `tests/test_adapters/test_arcdev.py` exists with TDD tests
-- [ ] `tests/fixtures/arcdev_sample.*` exists
-- [ ] `python -m pytest tests/test_adapters/test_arcdev.py -v` → all tests pass
-- [ ] `python -m pytest tests/ -v` → all tests pass (no regressions)
+- [x] `ArcDevAdapter` class added to `scraper/adapters/browser.py`
+- [x] `tests/test_adapters/test_arcdev.py` exists with TDD tests
+- [x] `tests/fixtures/arcdev_sample.*` exists
+- [x] `python -m pytest tests/test_adapters/test_arcdev.py -v` → all tests pass
+- [x] `python -m pytest tests/ -v` → all tests pass (no regressions)
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -720,12 +720,12 @@ Scenario: Full test suite unbroken
 - Python difflib docs: https://docs.python.org/3/library/difflib.html#difflib.SequenceMatcher
 
 **Acceptance Criteria**:
-- [ ] `scraper/utils/dedup.py` exists with DedupManager class
-- [ ] `tests/test_dedup.py` exists with TDD tests
-- [ ] Dedup detects: same job posted on RemoteOK and WeWorkRemotely (different source, same company+title)
-- [ ] Dedup does NOT flag: different jobs at same company
-- [ ] `python -m pytest tests/test_dedup.py -v` → all tests pass
-- [ ] `python -m pytest tests/ -v` → all tests pass (no regressions)
+- [x] `scraper/utils/dedup.py` exists with DedupManager class
+- [x] `tests/test_dedup.py` exists with TDD tests
+- [x] Dedup detects: same job posted on RemoteOK and WeWorkRemotely (different source, same company+title)
+- [x] Dedup does NOT flag: different jobs at same company
+- [x] `python -m pytest tests/test_dedup.py -v` → all tests pass
+- [x] `python -m pytest tests/ -v` → all tests pass (no regressions)
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -787,9 +787,9 @@ Scenario: Dedup ignores different jobs at same company
 - All new adapter implementations from Tasks 3-6
 
 **Acceptance Criteria**:
-- [ ] `config/sites.yaml` has max_pages for all paginated adapters
-- [ ] Pagination logging shows page progress during scrape
-- [ ] `python -m pytest tests/ -v` → all tests pass
+- [x] `config/sites.yaml` has max_pages for all paginated adapters
+- [x] Pagination logging shows page progress during scrape
+- [x] `python -m pytest tests/ -v` → all tests pass
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -850,14 +850,14 @@ Scenario: Pagination config present
 - All new adapter files and test files from Tasks 3-8
 
 **Acceptance Criteria**:
-- [ ] `python -m pytest tests/ -v` → ALL tests pass (existing + new)
-- [ ] `python main.py scrape --site remoteok --verbose` → returns jobs (async)
-- [ ] `python main.py scrape --site eleduck --verbose` → returns jobs (async)
-- [ ] `python main.py scrape --site weworkremotely --verbose` → returns jobs (async)
-- [ ] `python main.py stats` → shows correct statistics
-- [ ] `python main.py export --format json` → creates valid JSON
-- [ ] No hardcoded secrets in any .py or .yaml files
-- [ ] All imports resolve cleanly
+- [x] `python -m pytest tests/ -v` → ALL tests pass (existing + new)
+- [x] `python main.py scrape --site remoteok --verbose` → returns jobs (async)
+- [x] `python main.py scrape --site eleduck --verbose` → returns jobs (async)
+- [x] `python main.py scrape --site weworkremotely --verbose` → returns jobs (async)
+- [x] `python main.py stats` → shows correct statistics
+- [x] `python main.py export --format json` → creates valid JSON
+- [x] No hardcoded secrets in any .py or .yaml files
+- [x] All imports resolve cleanly
 
 **Agent-Executed QA Scenarios**:
 ```
@@ -927,11 +927,11 @@ grep -r "import sqlite3" scraper/                        # 0 matches (all aiosql
 ```
 
 ### Final Checklist
-- [ ] All Phase 1 tests still pass (no regressions)
-- [ ] All new adapter tests pass
-- [ ] Async migration complete (no sync httpx/sqlite3 in scraper/)
-- [ ] 4 new adapters registered and functional
-- [ ] Cross-site dedup working
-- [ ] CLI unchanged (scrape/stats/export)
-- [ ] Credentials in .env only (not in code)
-- [ ] Playwright browser binary installed
+- [x] All Phase 1 tests still pass (no regressions)
+- [x] All new adapter tests pass
+- [x] Async migration complete (no sync httpx/sqlite3 in scraper/)
+- [x] 4 new adapters registered and functional
+- [x] Cross-site dedup working
+- [x] CLI unchanged (scrape/stats/export)
+- [x] Credentials in .env only (not in code)
+- [x] Playwright browser binary installed
