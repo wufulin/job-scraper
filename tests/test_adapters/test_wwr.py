@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import feedparser
 import pytest
@@ -230,7 +230,7 @@ class TestMissingFields:
 class TestFetchJobs:
     """Tests for the full fetch_jobs() method with mocked HTTP."""
 
-    def test_fetch_jobs_returns_postings(
+    async def test_fetch_jobs_returns_postings(
         self, adapter: WeWorkRemotelyAdapter, fixture_xml: str
     ) -> None:
         """fetch_jobs() should return JobPosting objects from RSS."""
@@ -238,13 +238,13 @@ class TestFetchJobs:
         mock_response.text = fixture_xml
         mock_response.raise_for_status = MagicMock()
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            jobs = adapter.fetch_jobs()
+            jobs = await adapter.fetch_jobs()
 
         assert len(jobs) > 0
         assert len(jobs) <= 10  # Fixture has 10 entries
@@ -252,7 +252,7 @@ class TestFetchJobs:
             assert isinstance(job, JobPosting)
             assert job.source == "weworkremotely"
 
-    def test_fetch_jobs_handles_bozo_feed(
+    async def test_fetch_jobs_handles_bozo_feed(
         self, adapter: WeWorkRemotelyAdapter
     ) -> None:
         """fetch_jobs() should handle malformed XML gracefully."""
@@ -262,13 +262,13 @@ class TestFetchJobs:
         mock_response.text = broken_xml
         mock_response.raise_for_status = MagicMock()
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            jobs = adapter.fetch_jobs()
+            jobs = await adapter.fetch_jobs()
 
         # Should still parse what it can
         assert isinstance(jobs, list)

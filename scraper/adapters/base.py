@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import random
-import time
 
 import httpx
 from fake_useragent import UserAgent
@@ -41,7 +41,7 @@ class BaseAdapter(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def fetch_jobs(self) -> list[JobPosting]:
+    async def fetch_jobs(self) -> list[JobPosting]:
         """Fetch and return job postings from the source.
 
         Returns:
@@ -49,22 +49,22 @@ class BaseAdapter(abc.ABC):
         """
         ...
 
-    def _get_client(self, timeout: float = 30.0) -> httpx.Client:
-        """Create an httpx sync client with randomized User-Agent.
+    def _get_client(self, timeout: float = 30.0) -> httpx.AsyncClient:
+        """Create an httpx async client with randomized User-Agent.
 
         Args:
             timeout: Request timeout in seconds (default 30).
 
         Returns:
-            Configured httpx.Client instance.
+            Configured httpx.AsyncClient instance.
         """
         ua = UserAgent()
         headers = dict(self.config.get("headers", {}))
         headers["User-Agent"] = ua.random
         logger.debug("Using User-Agent: {}", headers["User-Agent"])
-        return httpx.Client(headers=headers, timeout=timeout)
+        return httpx.AsyncClient(headers=headers, timeout=timeout)
 
-    def _delay(self) -> None:
+    async def _delay(self) -> None:
         """Sleep for a random duration within the configured rate limit range.
 
         Uses rate_limit_seconds from config (default 2s).
@@ -73,4 +73,4 @@ class BaseAdapter(abc.ABC):
         base = self.config.get("rate_limit_seconds", 2)
         sleep_time = random.uniform(base * 0.5, base * 1.5)
         logger.debug("Rate-limiting: sleeping {:.2f}s", sleep_time)
-        time.sleep(sleep_time)
+        await asyncio.sleep(sleep_time)

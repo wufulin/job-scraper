@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -158,7 +158,7 @@ class TestRemoteOKAdapter:
     def test_salary_formatting_none(self) -> None:
         assert RemoteOKAdapter._format_salary(None, None) is None
 
-    def test_fetch_jobs_with_fixture(
+    async def test_fetch_jobs_with_fixture(
         self, adapter: RemoteOKAdapter, fixture_data: list[dict]
     ) -> None:
         """fetch_jobs() should skip legal notice and parse remaining entries."""
@@ -166,13 +166,13 @@ class TestRemoteOKAdapter:
         mock_response.json.return_value = fixture_data
         mock_response.raise_for_status = MagicMock()
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            jobs = adapter.fetch_jobs()
+            jobs = await adapter.fetch_jobs()
 
         assert len(jobs) > 0
         # Should be at most len(fixture_data) - 1 (minus the legal notice)

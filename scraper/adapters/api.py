@@ -25,7 +25,7 @@ class RemoteOKAdapter(BaseAdapter):
     def source_id(self) -> str:
         return "remoteok"
 
-    def fetch_jobs(self) -> list[JobPosting]:
+    async def fetch_jobs(self) -> list[JobPosting]:
         """Fetch jobs from the RemoteOK API.
 
         Returns:
@@ -34,8 +34,8 @@ class RemoteOKAdapter(BaseAdapter):
         url = self.config.get("url", "https://remoteok.com/api")
         logger.info("Fetching jobs from {} ({})", self.name, url)
 
-        with self._get_client() as client:
-            response = client.get(url)
+        async with self._get_client() as client:
+            response = await client.get(url)
             response.raise_for_status()
             data = response.json()
 
@@ -154,7 +154,7 @@ class EleduckAdapter(BaseAdapter):
     def source_id(self) -> str:
         return "eleduck"
 
-    def fetch_jobs(self) -> list[JobPosting]:
+    async def fetch_jobs(self) -> list[JobPosting]:
         """Fetch jobs from the Eleduck API.
 
         Supports pagination up to 5 pages (configurable via max_pages in config).
@@ -170,12 +170,12 @@ class EleduckAdapter(BaseAdapter):
 
         jobs: list[JobPosting] = []
         
-        with self._get_client() as client:
+        async with self._get_client() as client:
             for page in range(1, max_pages + 1):
                 params["page"] = page
                 logger.debug("Fetching page {} from {}", page, self.name)
                 
-                response = client.get(base_url, params=params)
+                response = await client.get(base_url, params=params)
                 response.raise_for_status()
                 data = response.json()
                 
@@ -199,7 +199,7 @@ class EleduckAdapter(BaseAdapter):
                 
                 # Rate limit between pages
                 if page < max_pages and raw_posts:
-                    self._delay()
+                    await self._delay()
 
         logger.info("Parsed {} valid jobs from {}", len(jobs), self.name)
         return jobs

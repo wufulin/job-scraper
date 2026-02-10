@@ -27,7 +27,7 @@ class WeWorkRemotelyAdapter(BaseAdapter):
     def source_id(self) -> str:
         return "weworkremotely"
 
-    def fetch_jobs(self) -> list[JobPosting]:
+    async def fetch_jobs(self) -> list[JobPosting]:
         """Fetch jobs from the WeWorkRemotely RSS feed.
 
         Returns:
@@ -36,8 +36,8 @@ class WeWorkRemotelyAdapter(BaseAdapter):
         url = self.config.get("url", "https://weworkremotely.com/remote-jobs.rss")
         logger.info("Fetching jobs from {} ({})", self.name, url)
 
-        with self._get_client() as client:
-            response = client.get(url)
+        async with self._get_client() as client:
+            response = await client.get(url)
             response.raise_for_status()
             xml_text = response.text
 

@@ -46,3 +46,6 @@ packages = ["scraper", "scraper.adapters", "scraper.utils", "config"]
 
 [tool.setuptools.package-data]
 config = ["*.yaml"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
