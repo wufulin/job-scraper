@@ -7,9 +7,9 @@ import asyncio
 import yaml
 from loguru import logger
 
-from scraper.adapters.api import EleduckAdapter, RemoteOKAdapter
+from scraper.adapters.api import EleduckAdapter, RemoteOKAdapter, WorkGoAdapter
 from scraper.adapters.base import BaseAdapter
-from scraper.adapters.browser import ArcDevAdapter, WorkGoAdapter
+from scraper.adapters.browser import ArcDevAdapter
 from scraper.adapters.html import YuanchengAdapter
 from scraper.adapters.hybrid import V2EXAdapter
 from scraper.adapters.rss import WeWorkRemotelyAdapter
