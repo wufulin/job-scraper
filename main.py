@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import signal
 import sys
 
@@ -44,7 +45,7 @@ def cmd_scrape(args: argparse.Namespace) -> None:
     signal.signal(signal.SIGINT, _handle_sigint)
 
     logger.info("Starting scrape command")
-    summary = _orchestrator.run(site=args.site, dry_run=args.dry_run)
+    summary = asyncio.run(_orchestrator.run(site=args.site, dry_run=args.dry_run))
 
     # Print summary
     print("\n" + "=" * 50)
@@ -81,7 +82,7 @@ def cmd_export(args: argparse.Namespace) -> None:
 
     storage = StorageManager()
     logger.info("Exporting jobs to {}", output)
-    storage.export_json(output)
+    asyncio.run(storage.export_json(output))
     print(f"Exported jobs to {output}")
 
 
@@ -89,8 +90,11 @@ def cmd_stats(args: argparse.Namespace) -> None:
     """Show database statistics."""
     from scraper.utils.storage import StorageManager
 
-    storage = StorageManager()
-    stats = storage.get_stats()
+    async def _get_stats() -> dict:
+        storage = StorageManager()
+        return await storage.get_stats()
+
+    stats = asyncio.run(_get_stats())
 
     print("\n" + "=" * 50)
     print("  Database Statistics")

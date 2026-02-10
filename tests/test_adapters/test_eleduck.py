@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -150,7 +150,7 @@ class TestEleduckAdapter:
         for tag in job.tags:
             assert isinstance(tag, str)
 
-    def test_fetch_jobs_with_fixture(
+    async def test_fetch_jobs_with_fixture(
         self, adapter: EleduckAdapter, fixture_data: dict
     ) -> None:
         """fetch_jobs() should parse all posts from the response."""
@@ -163,14 +163,14 @@ class TestEleduckAdapter:
         page2_response.json.return_value = {"posts": []}
         page2_response.raise_for_status = MagicMock()
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_client.get.side_effect = [page1_response, page2_response]
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            with patch.object(adapter, "_delay"):  # Skip delays in tests
-                jobs = adapter.fetch_jobs()
+            with patch.object(adapter, "_delay", new_callable=AsyncMock):  # Skip delays in tests
+                jobs = await adapter.fetch_jobs()
 
         assert len(jobs) > 0
         # Should be exactly len(posts) from first page
@@ -179,7 +179,7 @@ class TestEleduckAdapter:
             assert isinstance(job, JobPosting)
             assert job.source == "eleduck"
 
-    def test_pagination_stops_on_empty(self, adapter: EleduckAdapter) -> None:
+    async def test_pagination_stops_on_empty(self, adapter: EleduckAdapter) -> None:
         """Pagination should stop when API returns empty posts array."""
         # First page has posts, second page is empty
         page1_response = MagicMock()
@@ -190,14 +190,14 @@ class TestEleduckAdapter:
         page2_response.json.return_value = {"posts": []}
         page2_response.raise_for_status = MagicMock()
 
-        mock_client = MagicMock()
+        mock_client = AsyncMock()
         mock_client.get.side_effect = [page1_response, page2_response]
-        mock_client.__enter__ = MagicMock(return_value=mock_client)
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
 
         with patch.object(adapter, "_get_client", return_value=mock_client):
-            with patch.object(adapter, "_delay"):  # Skip delays in tests
-                jobs = adapter.fetch_jobs()
+            with patch.object(adapter, "_delay", new_callable=AsyncMock):  # Skip delays in tests
+                jobs = await adapter.fetch_jobs()
 
         # Should have called get twice (page 1 and page 2)
         assert mock_client.get.call_count == 2

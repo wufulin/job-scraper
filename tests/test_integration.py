@@ -7,7 +7,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -114,17 +114,17 @@ def _cleanup_file(path: str) -> None:
 
 
 def _make_mock_client(responses):
-    """Build a mock httpx.Client context-manager.
+    """Build a mock httpx.AsyncClient context-manager.
 
     *responses* is either a single MagicMock or a list of MagicMock responses.
     """
-    client = MagicMock()
+    client = AsyncMock()
     if isinstance(responses, list):
-        client.get = MagicMock(side_effect=responses)
+        client.get = AsyncMock(side_effect=responses)
     else:
-        client.get = MagicMock(return_value=responses)
-    client.__enter__ = MagicMock(return_value=client)
-    client.__exit__ = MagicMock(return_value=False)
+        client.get = AsyncMock(return_value=responses)
+    client.__aenter__.return_value = client
+    client.__aexit__.return_value = False
     return client
 
 
@@ -200,7 +200,7 @@ def kw_yaml():
 class TestFullPipeline:
     """Full pipeline: fetch (mocked) → match → store → verify DB has data."""
 
-    def test_full_pipeline_all_adapters(self, temp_db, sites_yaml, kw_yaml):
+    async def test_full_pipeline_all_adapters(self, temp_db, sites_yaml, kw_yaml):
         """Orchestrator processes all three sites, stores matched jobs."""
         remoteok_json = _load_fixture(REMOTEOK_FIXTURE)
         eleduck_json = _load_fixture(ELEDUCK_FIXTURE)
@@ -226,7 +226,7 @@ class TestFullPipeline:
                 keywords_config_path=kw_yaml,
                 db_path=temp_db,
             )
-            summary = orch.run()
+            summary = await orch.run()
 
         assert summary["total_scraped"] > 0, "Should have fetched jobs"
         assert summary["matched"] > 0, "Should have matched some jobs"
@@ -236,7 +236,7 @@ class TestFullPipeline:
 
         # Verify DB has actual data
         sm = StorageManager(db_path=temp_db)
-        stats = sm.get_stats()
+        stats = await sm.get_stats()
         assert stats["total"] > 0
         assert stats["total"] == summary["new"]
         assert stats["active"] == stats["total"]
@@ -250,7 +250,7 @@ class TestFullPipeline:
 class TestDryRun:
     """Dry-run mode: match but don't persist."""
 
-    def test_dry_run_stores_nothing(self, temp_db, kw_yaml):
+    async def test_dry_run_stores_nothing(self, temp_db, kw_yaml):
         """In dry-run mode, matched jobs are NOT written to the database."""
         remoteok_json = _load_fixture(REMOTEOK_FIXTURE)
         remoteok_resp = _build_mock_response(remoteok_json, is_json=True)
@@ -268,7 +268,7 @@ class TestDryRun:
                     keywords_config_path=kw_yaml,
                     db_path=temp_db,
                 )
-                summary = orch.run(dry_run=True)
+                summary = await orch.run(dry_run=True)
 
             assert summary["matched"] > 0, "Should match jobs even in dry-run"
             assert summary["new"] == 0, "Dry-run should not store any jobs"
@@ -276,7 +276,7 @@ class TestDryRun:
 
             # Verify DB is empty
             sm = StorageManager(db_path=temp_db)
-            stats = sm.get_stats()
+            stats = await sm.get_stats()
             assert stats["total"] == 0, "Database should be empty after dry-run"
         finally:
             _cleanup_file(sites_path)
@@ -290,7 +290,7 @@ class TestDryRun:
 class TestSingleSiteFilter:
     """Filter to a single site."""
 
-    def test_single_site_only_scrapes_that_site(self, temp_db, sites_yaml, kw_yaml):
+    async def test_single_site_only_scrapes_that_site(self, temp_db, sites_yaml, kw_yaml):
         """When site='remoteok', only RemoteOK adapter is invoked."""
         remoteok_json = _load_fixture(REMOTEOK_FIXTURE)
         remoteok_resp = _build_mock_response(remoteok_json, is_json=True)
@@ -307,7 +307,7 @@ class TestSingleSiteFilter:
                 keywords_config_path=kw_yaml,
                 db_path=temp_db,
             )
-            summary = orch.run(site="remoteok")
+            summary = await orch.run(site="remoteok")
 
         # Only RemoteOKAdapter should have been called
         assert adapter_types_called == ["RemoteOKAdapter"]
@@ -315,7 +315,7 @@ class TestSingleSiteFilter:
 
         # All stored jobs should be from remoteok
         sm = StorageManager(db_path=temp_db)
-        stats = sm.get_stats()
+        stats = await sm.get_stats()
         if stats["total"] > 0:
             assert list(stats["by_source"].keys()) == ["remoteok"]
 
@@ -328,7 +328,7 @@ class TestSingleSiteFilter:
 class TestErrorHandling:
     """One adapter failure doesn't kill the whole pipeline."""
 
-    def test_one_adapter_fails_others_continue(self, temp_db, sites_yaml, kw_yaml):
+    async def test_one_adapter_fails_others_continue(self, temp_db, sites_yaml, kw_yaml):
         """If one adapter raises, the others still get processed."""
         eleduck_json = _load_fixture(ELEDUCK_FIXTURE)
         wwr_xml = _load_fixture(WWR_FIXTURE)
@@ -351,7 +351,7 @@ class TestErrorHandling:
                 keywords_config_path=kw_yaml,
                 db_path=temp_db,
             )
-            summary = orch.run()
+            summary = await orch.run()
 
         # Should have exactly one error (for remoteok)
         assert len(summary["errors"]) == 1
@@ -369,7 +369,7 @@ class TestErrorHandling:
 class TestStatsAfterScrape:
     """Verify stats match what was stored."""
 
-    def test_stats_match_stored_count(self, storage, matcher):
+    async def test_stats_match_stored_count(self, storage, matcher):
         """Stats total should equal number of upserted jobs."""
         from datetime import datetime
 
@@ -417,12 +417,12 @@ class TestStatsAfterScrape:
 
         total_new = 0
         for job in jobs:
-            new, _ = storage.upsert_job(job)
+            new, _ = await storage.upsert_job(job)
             total_new += new
 
         assert total_new == 3
 
-        stats = storage.get_stats()
+        stats = await storage.get_stats()
         assert stats["total"] == 3
         assert stats["active"] == 3
         assert stats["inactive"] == 0
@@ -430,7 +430,7 @@ class TestStatsAfterScrape:
         assert stats["by_source"]["eleduck"] == 1
         assert stats["by_source"]["weworkremotely"] == 1
 
-    def test_stats_after_update(self, storage):
+    async def test_stats_after_update(self, storage):
         """After upserting same job twice, count stays 1 but update_count increments."""
         from datetime import datetime
 
@@ -449,13 +449,13 @@ class TestStatsAfterScrape:
             last_updated=now,
         )
 
-        new1, upd1 = storage.upsert_job(job)
+        new1, upd1 = await storage.upsert_job(job)
         assert (new1, upd1) == (1, 0)
 
-        new2, upd2 = storage.upsert_job(job)
+        new2, upd2 = await storage.upsert_job(job)
         assert (new2, upd2) == (0, 1)
 
-        stats = storage.get_stats()
+        stats = await storage.get_stats()
         assert stats["total"] == 1, "Still only one unique job"
 
 
@@ -467,7 +467,7 @@ class TestStatsAfterScrape:
 class TestExportAfterScrape:
     """Export produces a valid JSON file with correct data."""
 
-    def test_export_json_valid(self, storage):
+    async def test_export_json_valid(self, storage):
         """Export creates a JSON file with all stored jobs."""
         from datetime import datetime
 
@@ -501,14 +501,14 @@ class TestExportAfterScrape:
         ]
 
         for job in jobs:
-            storage.upsert_job(job)
+            await storage.upsert_job(job)
 
         # Export to a temp file
         fd, export_path = tempfile.mkstemp(suffix=".json", prefix="test_export_")
         os.close(fd)
 
         try:
-            storage.export_json(export_path)
+            await storage.export_json(export_path)
 
             # Verify file exists and is valid JSON
             assert os.path.exists(export_path)
@@ -535,13 +535,13 @@ class TestExportAfterScrape:
             except OSError:
                 pass
 
-    def test_export_empty_db(self, storage):
+    async def test_export_empty_db(self, storage):
         """Export on empty DB creates a valid empty JSON array."""
         fd, export_path = tempfile.mkstemp(suffix=".json", prefix="test_export_empty_")
         os.close(fd)
 
         try:
-            storage.export_json(export_path)
+            await storage.export_json(export_path)
 
             with open(export_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -581,7 +581,7 @@ class TestComponentIntegration:
         }
         assert matcher.match_job(non_matching, "remoteok") is False
 
-    def test_model_round_trip_through_storage(self, storage):
+    async def test_model_round_trip_through_storage(self, storage):
         """JobPosting → DB → JobPosting preserves all fields."""
         from datetime import datetime
 
@@ -603,8 +603,8 @@ class TestComponentIntegration:
             last_updated=now,
         )
 
-        storage.upsert_job(original)
-        retrieved = storage.get_all_jobs(active_only=True)
+        await storage.upsert_job(original)
+        retrieved = await storage.get_all_jobs(active_only=True)
 
         assert len(retrieved) == 1
         r = retrieved[0]

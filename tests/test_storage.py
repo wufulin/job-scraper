@@ -113,65 +113,65 @@ def test_storage_init_creates_indexes(storage, temp_db):
         assert indexes == expected_indexes
 
 
-def test_upsert_job_inserts_new_job(storage, sample_job):
+async def test_upsert_job_inserts_new_job(storage, sample_job):
     """Test inserting a new job."""
-    new_count, updated_count = storage.upsert_job(sample_job)
+    new_count, updated_count = await storage.upsert_job(sample_job)
     
     assert new_count == 1
     assert updated_count == 0
     
     # Verify job was stored
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     assert len(jobs) == 1
     assert jobs[0].id == sample_job.id
     assert jobs[0].title == sample_job.title
     assert jobs[0].company == sample_job.company
 
 
-def test_upsert_job_updates_existing_job(storage, sample_job):
+async def test_upsert_job_updates_existing_job(storage, sample_job):
     """Test updating an existing job."""
     # Insert job first
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Update the job
     sample_job.title = "Updated Title"
     sample_job.last_seen = datetime.now()
     sample_job.last_updated = datetime.now()
     
-    new_count, updated_count = storage.upsert_job(sample_job)
+    new_count, updated_count = await storage.upsert_job(sample_job)
     
     assert new_count == 0
     assert updated_count == 1
     
     # Verify job was updated
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     assert len(jobs) == 1
     assert jobs[0].title == "Updated Title"
     assert jobs[0].update_count == 2  # Should increment
 
 
-def test_upsert_job_preserves_first_seen(storage, sample_job):
+async def test_upsert_job_preserves_first_seen(storage, sample_job):
     """Test that first_seen is preserved on update."""
     original_first_seen = sample_job.first_seen
     
     # Insert job
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Update job with different first_seen
     sample_job.first_seen = datetime.now()
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Verify first_seen was preserved
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     assert jobs[0].first_seen == original_first_seen
 
 
-def test_get_all_jobs_returns_active_only(storage, sample_job):
+async def test_get_all_jobs_returns_active_only(storage, sample_job):
     """Test that get_all_jobs filters by is_active."""
     import sqlite3
     
     # Insert job
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Manually set job as inactive
     with sqlite3.connect(storage.db_path) as conn:
@@ -180,19 +180,19 @@ def test_get_all_jobs_returns_active_only(storage, sample_job):
         conn.commit()
     
     # Should return empty list with active_only=True
-    active_jobs = storage.get_all_jobs(active_only=True)
+    active_jobs = await storage.get_all_jobs(active_only=True)
     assert len(active_jobs) == 0
     
     # Should return job with active_only=False
-    all_jobs = storage.get_all_jobs(active_only=False)
+    all_jobs = await storage.get_all_jobs(active_only=False)
     assert len(all_jobs) == 1
 
 
-def test_get_all_jobs_deserializes_correctly(storage, sample_job):
+async def test_get_all_jobs_deserializes_correctly(storage, sample_job):
     """Test that jobs are correctly deserialized from database."""
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     job = jobs[0]
     
     # Check all fields
@@ -208,7 +208,7 @@ def test_get_all_jobs_deserializes_correctly(storage, sample_job):
     assert job.update_count == sample_job.update_count
 
 
-def test_get_all_jobs_handles_null_fields(storage):
+async def test_get_all_jobs_handles_null_fields(storage):
     """Test that jobs with NULL fields are deserialized correctly."""
     now = datetime.now()
     job = JobPosting(
@@ -221,9 +221,9 @@ def test_get_all_jobs_handles_null_fields(storage):
         last_updated=now
     )
     
-    storage.upsert_job(job)
+    await storage.upsert_job(job)
     
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     assert len(jobs) == 1
     assert jobs[0].company is None
     assert jobs[0].published_at is None
@@ -233,22 +233,22 @@ def test_get_all_jobs_handles_null_fields(storage):
     assert jobs[0].tags == []
 
 
-def test_get_stats_returns_correct_counts(storage, sample_job):
+async def test_get_stats_returns_correct_counts(storage, sample_job):
     """Test that get_stats returns accurate statistics."""
     import sqlite3
     
     # Insert multiple jobs
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     job2 = sample_job.model_copy()
     job2.id = "test456"
     job2.source = "eleduck"
-    storage.upsert_job(job2)
+    await storage.upsert_job(job2)
     
     job3 = sample_job.model_copy()
     job3.id = "test789"
     job3.source = "weworkremotely"
-    storage.upsert_job(job3)
+    await storage.upsert_job(job3)
     
     # Mark one job as inactive
     with sqlite3.connect(storage.db_path) as conn:
@@ -256,7 +256,7 @@ def test_get_stats_returns_correct_counts(storage, sample_job):
         cursor.execute("UPDATE jobs SET is_active = 0 WHERE id = ?", (job3.id,))
         conn.commit()
     
-    stats = storage.get_stats()
+    stats = await storage.get_stats()
     
     assert stats["total"] == 3
     assert stats["active"] == 2
@@ -266,9 +266,9 @@ def test_get_stats_returns_correct_counts(storage, sample_job):
     assert "weworkremotely" not in stats["by_source"]  # Inactive job not counted
 
 
-def test_get_stats_empty_database(storage):
+async def test_get_stats_empty_database(storage):
     """Test get_stats on empty database."""
-    stats = storage.get_stats()
+    stats = await storage.get_stats()
     
     assert stats["total"] == 0
     assert stats["active"] == 0
@@ -276,16 +276,16 @@ def test_get_stats_empty_database(storage):
     assert stats["by_source"] == {}
 
 
-def test_export_json_creates_file(storage, sample_job, temp_db):
+async def test_export_json_creates_file(storage, sample_job, temp_db):
     """Test that export_json creates a valid JSON file."""
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Export to temp file
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         export_path = f.name
     
     try:
-        storage.export_json(export_path)
+        await storage.export_json(export_path)
         
         # Verify file exists and is valid JSON
         assert Path(export_path).exists()
@@ -300,12 +300,12 @@ def test_export_json_creates_file(storage, sample_job, temp_db):
         Path(export_path).unlink(missing_ok=True)
 
 
-def test_export_json_only_exports_active_jobs(storage, sample_job):
+async def test_export_json_only_exports_active_jobs(storage, sample_job):
     """Test that export_json only exports active jobs."""
     import sqlite3
     
     # Insert job and mark as inactive
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     with sqlite3.connect(storage.db_path) as conn:
         cursor = conn.cursor()
@@ -317,7 +317,7 @@ def test_export_json_only_exports_active_jobs(storage, sample_job):
         export_path = f.name
     
     try:
-        storage.export_json(export_path)
+        await storage.export_json(export_path)
         
         with open(export_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -327,35 +327,35 @@ def test_export_json_only_exports_active_jobs(storage, sample_job):
         Path(export_path).unlink(missing_ok=True)
 
 
-def test_export_json_creates_parent_directory(storage, sample_job):
+async def test_export_json_creates_parent_directory(storage, sample_job):
     """Test that export_json creates parent directories if needed."""
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Use a path with non-existent parent directory
     with tempfile.TemporaryDirectory() as tmpdir:
         export_path = Path(tmpdir) / "subdir" / "output.json"
         
-        storage.export_json(str(export_path))
+        await storage.export_json(str(export_path))
         
         assert export_path.exists()
         assert export_path.parent.exists()
 
 
-def test_multiple_upserts_increment_count(storage, sample_job):
+async def test_multiple_upserts_increment_count(storage, sample_job):
     """Test that multiple upserts correctly increment update_count."""
     # Insert job
-    storage.upsert_job(sample_job)
+    await storage.upsert_job(sample_job)
     
     # Update multiple times
     for i in range(5):
         sample_job.last_seen = datetime.now()
-        storage.upsert_job(sample_job)
+        await storage.upsert_job(sample_job)
     
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     assert jobs[0].update_count == 6  # 1 initial + 5 updates
 
 
-def test_storage_handles_special_characters(storage):
+async def test_storage_handles_special_characters(storage):
     """Test that storage handles special characters in text fields."""
     now = datetime.now()
     job = JobPosting(
@@ -371,9 +371,9 @@ def test_storage_handles_special_characters(storage):
         last_updated=now
     )
     
-    storage.upsert_job(job)
+    await storage.upsert_job(job)
     
-    jobs = storage.get_all_jobs()
+    jobs = await storage.get_all_jobs()
     assert len(jobs) == 1
     assert jobs[0].title == job.title
     assert jobs[0].company == job.company

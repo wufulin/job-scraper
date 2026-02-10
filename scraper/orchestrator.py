@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import yaml
 from loguru import logger
 
@@ -47,7 +49,7 @@ class ScraperOrchestrator:
         # Interrupt flag for graceful Ctrl+C
         self.interrupted = False
 
-    def run(
+    async def run(
         self,
         site: str | None = None,
         dry_run: bool = False,
@@ -81,17 +83,26 @@ class ScraperOrchestrator:
             dry_run,
         )
 
-        for site_id, site_cfg in sites_to_run.items():
-            if self.interrupted:
-                logger.warning("Interrupted — stopping before {}", site_id)
-                break
+        # Run all adapters concurrently with a semaphore for rate limiting
+        semaphore = asyncio.Semaphore(3)
 
-            try:
-                self._scrape_site(site_id, site_cfg, dry_run, summary)
-            except Exception as exc:
-                error_msg = f"{site_id}: {exc}"
-                logger.error("Error scraping {}: {}", site_id, exc)
-                summary["errors"].append(error_msg)
+        async def _guarded_scrape(site_id: str, site_cfg: dict) -> None:
+            async with semaphore:
+                if self.interrupted:
+                    logger.warning("Interrupted — skipping {}", site_id)
+                    return
+                try:
+                    await self._scrape_site(site_id, site_cfg, dry_run, summary)
+                except Exception as exc:
+                    error_msg = f"{site_id}: {exc}"
+                    logger.error("Error scraping {}: {}", site_id, exc)
+                    summary["errors"].append(error_msg)
+
+        tasks = [
+            _guarded_scrape(site_id, site_cfg)
+            for site_id, site_cfg in sites_to_run.items()
+        ]
+        await asyncio.gather(*tasks)
 
         logger.info(
             "Scrape complete — scraped: {}, matched: {}, new: {}, updated: {}, errors: {}",
@@ -151,7 +162,7 @@ class ScraperOrchestrator:
             raise ValueError(f"No adapter registered for site '{site_id}'")
         return adapter_cls(config=site_config)
 
-    def _scrape_site(
+    async def _scrape_site(
         self,
         site_id: str,
         site_cfg: dict,
@@ -166,7 +177,7 @@ class ScraperOrchestrator:
         adapter = self._create_adapter(site_id, site_cfg)
 
         # Fetch
-        jobs = adapter.fetch_jobs()
+        jobs = await adapter.fetch_jobs()
         summary["total_scraped"] += len(jobs)
         logger.info("Fetched {} jobs from {}", len(jobs), site_id)
 
@@ -192,6 +203,6 @@ class ScraperOrchestrator:
                 logger.debug("[dry-run] Matched: {}", job.title)
                 continue
 
-            new_count, updated_count = self.storage.upsert_job(job)
+            new_count, updated_count = await self.storage.upsert_job(job)
             summary["new"] += new_count
             summary["updated"] += updated_count
