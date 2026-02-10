@@ -1,6 +1,9 @@
 {
-  "active_plan": "D:\\code\\backend\\job-scraper\\.sisyphus\\plans\\job-scraper-mvp.md",
-  "started_at": "2026-02-09T17:15:47.152Z",
-  "session_ids": ["ses_3bc990a2effe4ZxDmJvKylAM1e"],
-  "plan_name": "job-scraper-mvp"
+  "active_plan": "D:\\code\\backend\\job-scraper\\.sisyphus\\plans\\phase2-async-adapters.md",
+  "started_at": "2026-02-10T02:35:06.123Z",
+  "session_ids": [
+    "ses_3bc990a2effe4ZxDmJvKylAM1e"
+  ],
+  "plan_name": "phase2-async-adapters",
+  "agent": "atlas"
 }
