@@ -963,7 +963,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 9. Rewrite Storage + Integration Tests
+- [x] 9. Rewrite Storage + Integration Tests
 
   **What to do**:
   - Rewrite `tests/test_storage.py` to test `SupabaseStorage` using `FakeStorage`
