@@ -30,19 +30,23 @@ dependencies = [
     "pyyaml>=6.0",
     "loguru>=0.7.0",
     "pydantic>=2.0",
+    "pydantic-settings>=2.0",
     "chardet>=5.2.0",
     "playwright>=1.40.0",
     "aiosqlite>=0.19.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
 ]
 
 [tool.setuptools]
-packages = ["scraper", "scraper.adapters", "scraper.utils", "config"]
+packages = ["scraper", "scraper.adapters", "scraper.utils", "config", "app", "app.config", "app.routers", "app.services"]
 
 [tool.setuptools.package-data]
 config = ["*.yaml"]
