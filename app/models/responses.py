@@ -41,3 +41,47 @@ class JobListResponse(BaseModel):
 
     data: list[JobResponse]
     pagination: PaginationMeta
+
+
+# ---------------------------------------------------------------------------
+# Auth models
+# ---------------------------------------------------------------------------
+
+
+class RegisterRequest(BaseModel):
+    """Request body for user registration."""
+
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    """Request body for user login."""
+
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """JWT token response after successful authentication."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class UserResponse(BaseModel):
+    """Public user profile response."""
+
+    id: str
+    email: str
+    created_at: datetime
+
+
+class UserPayload(BaseModel):
+    """Decoded JWT payload for the current user."""
+
+    sub: str
+    email: str
+    role: str = "user"
