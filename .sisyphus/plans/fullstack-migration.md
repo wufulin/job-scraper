@@ -459,7 +459,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 2. Jobs API Endpoints
+- [x] 2. Jobs API Endpoints
 
   **What to do**:
   - Create `app/routers/jobs.py` with:
@@ -530,7 +530,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 3. Scrape Trigger + Stats + Export Endpoints
+- [x] 3. Scrape Trigger + Stats + Export Endpoints
 
   **What to do**:
   - Create `app/routers/scraper.py` with:

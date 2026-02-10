@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.config.settings import settings
-from app.routers import health
+from app.routers import health, jobs, scraper, stats
 
 
 @asynccontextmanager
@@ -33,3 +33,6 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(jobs.router)
+app.include_router(scraper.router)
+app.include_router(stats.router)
