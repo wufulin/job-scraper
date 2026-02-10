@@ -604,7 +604,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 4. Integration Wiring + Phase 1 Verification
+- [x] 4. Integration Wiring + Phase 1 Verification
 
   **What to do**:
   - Wire all routers into `app/main.py` with proper prefixes
