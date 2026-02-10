@@ -17,8 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from scraper.adapters.api import EleduckAdapter, RemoteOKAdapter
-from scraper.adapters.browser import ArcDevAdapter, WorkGoAdapter
+from scraper.adapters.api import EleduckAdapter, RemoteOKAdapter, WorkGoAdapter
+from scraper.adapters.browser import ArcDevAdapter
 from scraper.adapters.html import YuanchengAdapter
 from scraper.adapters.hybrid import V2EXAdapter
 from scraper.adapters.rss import WeWorkRemotelyAdapter
@@ -113,11 +113,13 @@ SITES_CONFIG_7 = {
             "name": "WorkGo",
             "url": "https://workgo.ai",
             "api_url": "https://api.workgo.ai/auth/jobs/all",
-            "adapter": "browser",
+            "clerk_base": "https://clerk.workgo.ai",
+            "adapter": "api",
             "enabled": True,
             "skip_location_match": True,
             "rate_limit_seconds": 0,
             "page_size": 20,
+            "max_pages": 5,
             "headers": {"User-Agent": "test-agent"},
         },
         "v2ex": {
