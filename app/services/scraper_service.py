@@ -5,13 +5,31 @@ import uuid
 from fastapi import BackgroundTasks
 from loguru import logger
 
+from app.config.settings import settings
+from app.services.storage import SupabaseStorage
 from scraper.orchestrator import ScraperOrchestrator
+
+_storage: SupabaseStorage | None = None
+
+
+async def init_scraper_storage() -> None:
+    global _storage  # noqa: PLW0603
+    if settings.DATABASE_URL:
+        _storage = SupabaseStorage()
+        await _storage.init_pool()
+
+
+async def close_scraper_storage() -> None:
+    global _storage  # noqa: PLW0603
+    if _storage:
+        await _storage.close_pool()
+        _storage = None
 
 
 class ScraperService:
 
-    def __init__(self) -> None:
-        self._orchestrator = ScraperOrchestrator()
+    def __init__(self, storage: object | None = None) -> None:
+        self._orchestrator = ScraperOrchestrator(storage=storage)
 
     def trigger_scrape(
         self,
@@ -54,5 +72,5 @@ _scraper_service: ScraperService | None = None
 def get_scraper_service() -> ScraperService:
     global _scraper_service  # noqa: PLW0603
     if _scraper_service is None:
-        _scraper_service = ScraperService()
+        _scraper_service = ScraperService(storage=_storage)
     return _scraper_service
