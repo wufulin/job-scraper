@@ -91,3 +91,32 @@
 
 ### Results
 - All 301 tests pass (11.52s) including 33 new arcdev tests
+
+## Task: Phase 2 Final Integration Test & Verification
+
+### Test Updates
+- Added 13 new integration tests to `tests/test_integration.py` (301 → 314 total)
+- New test classes: TestSevenSourcePipeline, TestSingleSiteFilterAll7, TestCrossSiteDedup, TestAdapterRegistration
+- Parametrized single-site filter tests cover all 7 adapters in one test method
+- Cross-site dedup tests verify DedupManager integration in the orchestrator pipeline
+
+### Key Patterns
+- Mock at `_create_adapter` level (not HTTP) for clean integration tests — lets each adapter's `fetch_jobs` be independently mocked
+- Must include both tech AND location keywords for adapters not in `skip_location_for` list (arcdev, v2ex, yuancheng, workgo, eleduck)
+- `asyncio_mode = "auto"` means no `@pytest.mark.asyncio` needed — just `async def test_*`
+
+### Live Smoke Test Results
+- RemoteOK: 96 fetched → 40 matched → 40 updated
+- Eleduck: 125 fetched (5 pages) → 28 matched → 28 updated
+- WeWorkRemotely: 100 fetched → 27 matched → 27 updated
+- Stats command: 95 total active jobs across 3 sources
+- Export command: writes valid JSON to data/exports/jobs.json
+
+### Code Quality
+- No hardcoded secrets found (WORKGO_EMAIL/PASSWORD from env vars only)
+- All 314 tests pass in 13.10s
+- All Phase 2 modules importable (browser, html, hybrid, dedup)
+
+### Gotcha: PowerShell Output Capture
+- `python -m pytest` stdout is swallowed by bash shell on Windows
+- Must use `powershell.exe -Command "... 2>&1 | Out-File -Encoding utf8 <file>"` pattern
