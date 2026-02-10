@@ -7,7 +7,7 @@ Python CLI tool that scrapes remote AI/ML job postings from multiple sources, fi
 - **7 data sources**: Scrapes from RemoteOK, Eleduck, WeWorkRemotely, V2EX, Arc.dev, WorkGo, and 远程.work
 - **Async architecture**: Concurrent scraping with asyncio, httpx.AsyncClient, and aiosqlite for high throughput
 - **Cross-site deduplication**: Fuzzy matching removes duplicate postings across different sources
-- **Browser automation**: Playwright-based scraping for JavaScript-heavy sites (Arc.dev, WorkGo)
+- **Browser automation**: Playwright-based scraping for JavaScript-heavy sites (Arc.dev)
 - **Smart keyword matching**: Supports CJK (Chinese, Japanese, Korean) characters for flexible job filtering
 - **Async SQLite storage**: aiosqlite-based storage with upsert deduplication
 - **JSON export**: Export matched jobs to JSON format for further analysis
@@ -24,7 +24,7 @@ Python CLI tool that scrapes remote AI/ML job postings from multiple sources, fi
 | WeWorkRemotely | RSS Feed | `rss.py` | Enabled |
 | V2EX | Hybrid HTML+API | `hybrid.py` | Enabled |
 | Arc.dev | Browser (Playwright) | `browser.py` | Enabled |
-| WorkGo | Browser (Playwright) | `browser.py` | Disabled |
+| WorkGo | JSON API | `api.py` | Disabled |
 | 远程.work | HTML Scraping | `html.py` | Disabled |
 
 ## Quick Start
@@ -32,7 +32,7 @@ Python CLI tool that scrapes remote AI/ML job postings from multiple sources, fi
 ### Requirements
 
 - Python 3.11 or higher
-- (Optional) Playwright browsers for Arc.dev/WorkGo scraping: `playwright install chromium`
+- (Optional) Playwright browsers for Arc.dev scraping: `playwright install chromium`
 
 ### Installation
 
@@ -181,7 +181,7 @@ To add a new keyword, simply append it to the appropriate group in `config/keywo
 
 ### Environment Variables
 
-The `.env.example` file lists environment variables: `PROXY_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LOG_LEVEL` (planned for future features), and `WORKGO_EMAIL`/`WORKGO_PASSWORD` (WorkGo authentication credentials).
+The `.env.example` file lists environment variables: `PROXY_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LOG_LEVEL` (planned for future features), and `WORKGO_COOKIE` (WorkGo Clerk __client cookie for authentication).
 
 ## Project Structure
 
@@ -201,16 +201,16 @@ job-scraper/
 │   ├── orchestrator.py    # Async scraping pipeline with dedup
 │   ├── adapters/
 │   │   ├── base.py        # BaseAdapter ABC (async)
-│   │   ├── api.py         # RemoteOKAdapter, EleduckAdapter
+│   │   ├── api.py         # RemoteOKAdapter, EleduckAdapter, WorkGoAdapter
 │   │   ├── rss.py         # WeWorkRemotelyAdapter
-│   │   ├── browser.py     # WorkGoAdapter, ArcDevAdapter (Playwright)
+│   │   ├── browser.py     # ArcDevAdapter (Playwright)
 │   │   ├── hybrid.py      # V2EXAdapter (HTML + API)
 │   │   └── html.py        # YuanchengAdapter (BeautifulSoup)
 │   └── utils/
 │       ├── matcher.py     # Keyword matching with CJK support
 │       ├── storage.py     # Async SQLite storage (aiosqlite)
 │       └── dedup.py       # Cross-site deduplication
-├── tests/                 # 314 tests
+├── tests/                 # 335 tests
 │   ├── test_matcher.py
 │   ├── test_storage.py
 │   ├── test_integration.py
@@ -261,7 +261,7 @@ Run the test suite:
 python -m pytest tests/ -v
 ```
 
-The project includes 314 tests covering all 7 adapters, matching logic, storage operations, deduplication, integration tests, and CLI commands. Tests complete in approximately 9 seconds.
+The project includes 335 tests covering all 7 adapters, matching logic, storage operations, deduplication, integration tests, and CLI commands. Tests complete in approximately 10 seconds.
 
 ## Tech Stack
 
@@ -290,7 +290,7 @@ The project includes 314 tests covering all 7 adapters, matching logic, storage 
 - ✓ Async migration (httpx.AsyncClient + aiosqlite)
 - ✓ V2EX job board integration (hybrid HTML+API)
 - ✓ Arc.dev integration (Playwright browser automation)
-- ✓ WorkGo integration (Playwright with Clerk auth)
+- ✓ WorkGo integration (API with Clerk cookie auth)
 - ✓ 远程.work integration (HTML scraping, disabled — domain redirects)
 - ✓ Cross-site deduplication
 - ✓ Concurrent scraping with asyncio.gather
