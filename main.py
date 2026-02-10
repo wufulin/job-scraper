@@ -131,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     scrape_p = sub.add_parser("scrape", help="Fetch jobs from configured sites")
     scrape_p.add_argument(
         "--site", "-s",
-        choices=["remoteok", "eleduck", "weworkremotely"],
+        choices=["remoteok", "eleduck", "weworkremotely", "workgo", "v2ex", "arcdev", "yuancheng"],
         default=None,
         help="Scrape only this site",
     )

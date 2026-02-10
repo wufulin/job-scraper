@@ -10,6 +10,10 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
+# Phase 1 + Phase 2 valid sources
+VALID_SOURCES = {"remoteok", "eleduck", "weworkremotely", "workgo", "v2ex", "arcdev", "yuancheng"}
+
+
 class JobPosting(BaseModel):
     """Job posting data model for Phase 1.
     
@@ -46,11 +50,10 @@ class JobPosting(BaseModel):
     @field_validator("source")
     @classmethod
     def validate_source(cls, v: str) -> str:
-        """Ensure source is one of the valid Phase 1 sources."""
-        valid_sources = {"remoteok", "eleduck", "weworkremotely"}
-        if v not in valid_sources:
+        """Ensure source is one of the valid Phase 1 + Phase 2 sources."""
+        if v not in VALID_SOURCES:
             raise ValueError(
-                f"Source must be one of {valid_sources}, got: {v}"
+                f"Source must be one of {VALID_SOURCES}, got: {v}"
             )
         return v
     
