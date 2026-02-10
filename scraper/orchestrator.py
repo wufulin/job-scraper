@@ -9,7 +9,12 @@ from loguru import logger
 
 from scraper.adapters.api import EleduckAdapter, RemoteOKAdapter
 from scraper.adapters.base import BaseAdapter
+from scraper.adapters.browser import ArcDevAdapter, WorkGoAdapter
+from scraper.adapters.html import YuanchengAdapter
+from scraper.adapters.hybrid import V2EXAdapter
 from scraper.adapters.rss import WeWorkRemotelyAdapter
+from scraper.models import JobPosting
+from scraper.utils.dedup import DedupManager
 from scraper.utils.matcher import KeywordMatcher
 from scraper.utils.storage import StorageManager
 
@@ -18,6 +23,10 @@ _ADAPTER_MAP: dict[str, type[BaseAdapter]] = {
     "remoteok": RemoteOKAdapter,
     "eleduck": EleduckAdapter,
     "weworkremotely": WeWorkRemotelyAdapter,
+    "workgo": WorkGoAdapter,
+    "v2ex": V2EXAdapter,
+    "yuancheng": YuanchengAdapter,
+    "arcdev": ArcDevAdapter,
 }
 
 
@@ -66,6 +75,7 @@ class ScraperOrchestrator:
         summary: dict = {
             "total_scraped": 0,
             "matched": 0,
+            "dedup_removed": 0,
             "new": 0,
             "updated": 0,
             "errors": [],
@@ -83,8 +93,10 @@ class ScraperOrchestrator:
             dry_run,
         )
 
-        # Run all adapters concurrently with a semaphore for rate limiting
+        # Phase 1: Fetch & match from all adapters concurrently
         semaphore = asyncio.Semaphore(3)
+        all_matched: list[JobPosting] = []
+        lock = asyncio.Lock()
 
         async def _guarded_scrape(site_id: str, site_cfg: dict) -> None:
             async with semaphore:
@@ -92,7 +104,9 @@ class ScraperOrchestrator:
                     logger.warning("Interrupted — skipping {}", site_id)
                     return
                 try:
-                    await self._scrape_site(site_id, site_cfg, dry_run, summary)
+                    matched = await self._scrape_site(site_id, site_cfg, summary)
+                    async with lock:
+                        all_matched.extend(matched)
                 except Exception as exc:
                     error_msg = f"{site_id}: {exc}"
                     logger.error("Error scraping {}: {}", site_id, exc)
@@ -104,10 +118,38 @@ class ScraperOrchestrator:
         ]
         await asyncio.gather(*tasks)
 
+        summary["matched"] = len(all_matched)
+
+        # Phase 2: Cross-site deduplication
+        deduped = DedupManager.deduplicate(all_matched)
+        dedup_removed = len(all_matched) - len(deduped)
+        if dedup_removed:
+            logger.info(
+                "Cross-site dedup removed {} duplicate(s) ({} → {})",
+                dedup_removed,
+                len(all_matched),
+                len(deduped),
+            )
+        summary["dedup_removed"] = dedup_removed
+
+        # Phase 3: Store deduplicated jobs
+        if not dry_run:
+            for job in deduped:
+                if self.interrupted:
+                    logger.warning("Interrupted during storage")
+                    break
+                new_count, updated_count = await self.storage.upsert_job(job)
+                summary["new"] += new_count
+                summary["updated"] += updated_count
+        else:
+            for job in deduped:
+                logger.debug("[dry-run] Matched: {}", job.title)
+
         logger.info(
-            "Scrape complete — scraped: {}, matched: {}, new: {}, updated: {}, errors: {}",
+            "Scrape complete — scraped: {}, matched: {}, dedup_removed: {}, new: {}, updated: {}, errors: {}",
             summary["total_scraped"],
             summary["matched"],
+            summary["dedup_removed"],
             summary["new"],
             summary["updated"],
             len(summary["errors"]),
@@ -166,12 +208,12 @@ class ScraperOrchestrator:
         self,
         site_id: str,
         site_cfg: dict,
-        dry_run: bool,
         summary: dict,
-    ) -> None:
-        """Fetch, match, and store jobs for a single site.
+    ) -> list[JobPosting]:
+        """Fetch and match jobs for a single site.
 
-        Mutates *summary* in place.
+        Returns matched jobs for cross-site dedup.  Mutates *summary*
+        total_scraped counter in place.
         """
         logger.info("--- Scraping {} ---", site_id)
         adapter = self._create_adapter(site_id, site_cfg)
@@ -181,28 +223,21 @@ class ScraperOrchestrator:
         summary["total_scraped"] += len(jobs)
         logger.info("Fetched {} jobs from {}", len(jobs), site_id)
 
-        # Match & store
+        # Match (collect, don't store yet — dedup happens later)
+        matched: list[JobPosting] = []
         for job in jobs:
             if self.interrupted:
                 logger.warning("Interrupted during {} matching", site_id)
                 break
 
-            # Convert JobPosting to dict for matcher
             job_dict = {
                 "title": job.title,
                 "description": job.description or "",
                 "tags": job.tags,
             }
 
-            if not self.matcher.match_job(job_dict, adapter.source_id):
-                continue
+            if self.matcher.match_job(job_dict, adapter.source_id):
+                matched.append(job)
 
-            summary["matched"] += 1
-
-            if dry_run:
-                logger.debug("[dry-run] Matched: {}", job.title)
-                continue
-
-            new_count, updated_count = await self.storage.upsert_job(job)
-            summary["new"] += new_count
-            summary["updated"] += updated_count
+        logger.info("Matched {} jobs from {}", len(matched), site_id)
+        return matched

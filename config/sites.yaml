@@ -16,6 +16,7 @@ sites:
     enabled: true
     skip_location_match: false
     rate_limit_seconds: 2
+    max_pages: 5
     params:
       category: 5
     headers:
@@ -27,6 +28,50 @@ sites:
     adapter: "rss"
     enabled: true
     skip_location_match: true
+    rate_limit_seconds: 2
+    headers:
+      User-Agent: "Mozilla/5.0"
+
+  workgo:
+    name: "WorkGo"
+    url: "https://www.workgo.com/api/jobs"
+    adapter: "api"
+    enabled: false
+    skip_location_match: true
+    rate_limit_seconds: 2
+    max_pages: 5
+    page_size: 20
+    headers:
+      User-Agent: "Mozilla/5.0"
+
+  v2ex:
+    name: "V2EX"
+    url: "https://www.v2ex.com/go/remote"
+    api_base: "https://www.v2ex.com/api/topics/show.json"
+    adapter: "hybrid"
+    enabled: true
+    skip_location_match: false
+    rate_limit_seconds: 6
+    max_pages: 3
+    headers:
+      User-Agent: "Mozilla/5.0"
+
+  arcdev:
+    name: "Arc.dev"
+    url: "https://arc.dev/remote-jobs"
+    adapter: "browser"
+    enabled: true
+    skip_location_match: true
+    rate_limit_seconds: 2
+    headers:
+      User-Agent: "Mozilla/5.0"
+
+  yuancheng:
+    name: "远程.work"
+    url: "https://yuancheng.work/jobs/"
+    adapter: "html"
+    enabled: false
+    skip_location_match: false
     rate_limit_seconds: 2
     headers:
       User-Agent: "Mozilla/5.0"
