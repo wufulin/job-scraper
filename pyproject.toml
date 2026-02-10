@@ -36,6 +36,7 @@ dependencies = [
     "aiosqlite>=0.19.0",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
+    "asyncpg>=0.29.0",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +47,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["scraper", "scraper.adapters", "scraper.utils", "config", "app", "app.config", "app.routers", "app.services"]
+packages = ["scraper", "scraper.adapters", "scraper.utils", "config", "app", "app.config", "app.routers", "app.services", "app.models"]
 
 [tool.setuptools.package-data]
 config = ["*.yaml"]

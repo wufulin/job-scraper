@@ -750,7 +750,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 6. SupabaseStorage Service (asyncpg)
+- [x] 6. SupabaseStorage Service (asyncpg)
 
   **What to do**:
   - Install `asyncpg`: `pip install asyncpg`
@@ -841,7 +841,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 7. JobPosting Model Evolution
+- [x] 7. JobPosting Model Evolution
 
   **What to do**:
   - Add `to_pg_dict()` method to `JobPosting` — returns dict with timezone-aware datetimes and native list for tags (no JSON string)
