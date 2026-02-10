@@ -1,4 +1,9 @@
-"""Integration tests — full pipeline with mocked HTTP (no live APIs)."""
+"""Integration tests — full pipeline with mocked HTTP (no live APIs).
+
+Covers all 7 adapters: RemoteOK, Eleduck, WeWorkRemotely, WorkGo, V2EX,
+Arc.dev, and Yuancheng.  Tests use fixture files and mock HTTP/browser
+interactions so they run offline and deterministically.
+"""
 
 from __future__ import annotations
 
@@ -13,9 +18,13 @@ import httpx
 import pytest
 
 from scraper.adapters.api import EleduckAdapter, RemoteOKAdapter
+from scraper.adapters.browser import ArcDevAdapter, WorkGoAdapter
+from scraper.adapters.html import YuanchengAdapter
+from scraper.adapters.hybrid import V2EXAdapter
 from scraper.adapters.rss import WeWorkRemotelyAdapter
 from scraper.models import JobPosting
 from scraper.orchestrator import ScraperOrchestrator
+from scraper.utils.dedup import DedupManager
 from scraper.utils.matcher import KeywordMatcher
 from scraper.utils.storage import StorageManager
 
@@ -26,6 +35,11 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 REMOTEOK_FIXTURE = FIXTURES_DIR / "remoteok_sample.json"
 ELEDUCK_FIXTURE = FIXTURES_DIR / "eleduck_sample.json"
 WWR_FIXTURE = FIXTURES_DIR / "wwr_sample.xml"
+WORKGO_FIXTURE = FIXTURES_DIR / "workgo_sample.json"
+V2EX_LISTING_FIXTURE = FIXTURES_DIR / "v2ex_listing.html"
+V2EX_TOPIC_FIXTURE = FIXTURES_DIR / "v2ex_topic.json"
+ARCDEV_FIXTURE = FIXTURES_DIR / "arcdev_sample.json"
+YUANCHENG_FIXTURE = FIXTURES_DIR / "yuancheng_listing.html"
 
 
 def _load_fixture(path: Path) -> str:
@@ -57,7 +71,7 @@ KEYWORDS_CONFIG = {
     },
 }
 
-# Minimal sites config used to drive the orchestrator
+# Minimal sites config used to drive the orchestrator (original 3)
 SITES_CONFIG_DICT = {
     "sites": {
         "remoteok": {
@@ -85,6 +99,52 @@ SITES_CONFIG_DICT = {
             "adapter": "rss",
             "enabled": True,
             "skip_location_match": True,
+            "rate_limit_seconds": 0,
+            "headers": {"User-Agent": "test-agent"},
+        },
+    }
+}
+
+# Full 7-source config for Phase 2 tests
+SITES_CONFIG_7 = {
+    "sites": {
+        **SITES_CONFIG_DICT["sites"],
+        "workgo": {
+            "name": "WorkGo",
+            "url": "https://workgo.ai",
+            "api_url": "https://api.workgo.ai/auth/jobs/all",
+            "adapter": "browser",
+            "enabled": True,
+            "skip_location_match": True,
+            "rate_limit_seconds": 0,
+            "page_size": 20,
+            "headers": {"User-Agent": "test-agent"},
+        },
+        "v2ex": {
+            "name": "V2EX",
+            "url": "https://www.v2ex.com/go/remote",
+            "api_base": "https://www.v2ex.com/api/topics/show.json",
+            "adapter": "hybrid",
+            "enabled": True,
+            "skip_location_match": False,
+            "rate_limit_seconds": 0,
+            "headers": {"User-Agent": "test-agent"},
+        },
+        "arcdev": {
+            "name": "Arc.dev",
+            "url": "https://arc.dev/remote-jobs",
+            "adapter": "browser",
+            "enabled": True,
+            "skip_location_match": True,
+            "rate_limit_seconds": 0,
+            "headers": {"User-Agent": "test-agent"},
+        },
+        "yuancheng": {
+            "name": "远程.work",
+            "url": "https://yuancheng.work/jobs/",
+            "adapter": "html",
+            "enabled": True,
+            "skip_location_match": False,
             "rate_limit_seconds": 0,
             "headers": {"User-Agent": "test-agent"},
         },
@@ -180,6 +240,14 @@ def storage(temp_db):
 def sites_yaml():
     """Write SITES_CONFIG_DICT to temp yaml; yield path; cleanup."""
     path = _write_temp_yaml(SITES_CONFIG_DICT)
+    yield path
+    _cleanup_file(path)
+
+
+@pytest.fixture()
+def sites_yaml_7():
+    """Write full 7-source SITES_CONFIG_7 to temp yaml; yield path; cleanup."""
+    path = _write_temp_yaml(SITES_CONFIG_7)
     yield path
     _cleanup_file(path)
 
@@ -619,19 +687,374 @@ class TestComponentIntegration:
         assert r.tags == original.tags
 
     def test_all_modules_importable(self):
-        """All project modules import without error."""
+        """All project modules import without error — including Phase 2 modules."""
         import scraper
         import scraper.adapters
         import scraper.adapters.api
         import scraper.adapters.base
+        import scraper.adapters.browser
+        import scraper.adapters.html
+        import scraper.adapters.hybrid
         import scraper.adapters.rss
         import scraper.logger
         import scraper.models
         import scraper.orchestrator
         import scraper.utils
+        import scraper.utils.dedup
         import scraper.utils.matcher
         import scraper.utils.storage
         import config
 
         # If we reach here, all imports succeeded
         assert True
+
+
+# ===========================================================================
+# Scenario 7: Full 7-source pipeline — mocked fetch for all adapters
+# ===========================================================================
+
+
+def _mock_adapter_fetch(adapter, jobs: list[JobPosting]):
+    """Monkey-patch an adapter's fetch_jobs to return pre-built jobs."""
+    adapter.fetch_jobs = AsyncMock(return_value=jobs)
+    return adapter
+
+
+class TestSevenSourcePipeline:
+    """Full pipeline with all 7 adapters mocked at the fetch_jobs level."""
+
+    async def test_seven_source_pipeline_fetches_all(self, temp_db, sites_yaml_7, kw_yaml):
+        """Orchestrator with 7 sources fetches, matches, deduplicates, and stores."""
+        from datetime import datetime
+
+        now = datetime.now()
+
+        # Build fake jobs per adapter — each has a tech keyword so matcher passes
+        fake_jobs = {
+            "remoteok": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://remoteok.com/j/1", "AI Eng"),
+                    title="AI Engineer",
+                    company="AlphaAI",
+                    url="https://remoteok.com/j/1",
+                    source="remoteok",
+                    description="Work on AI systems",
+                    tags=["AI"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+            "eleduck": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://eleduck.com/p/1", "LLM Dev"),
+                    title="LLM Developer",
+                    company="DuckCo",
+                    url="https://eleduck.com/p/1",
+                    source="eleduck",
+                    description="远程 LLM 开发",
+                    tags=["LLM", "远程"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+            "weworkremotely": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://wwr.com/j/1", "ML Eng"),
+                    title="Machine Learning Engineer",
+                    company="WWRCo",
+                    url="https://wwr.com/j/1",
+                    source="weworkremotely",
+                    description="ML pipeline development",
+                    tags=["machine learning"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+            "workgo": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://workgo.ai/j/1", "GPT Dev"),
+                    title="GPT Developer",
+                    company="WorkGoCo",
+                    url="https://workgo.ai/j/1",
+                    source="workgo",
+                    description="Build GPT tools",
+                    tags=["GPT"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+            "v2ex": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://v2ex.com/t/1", "DevOps Eng"),
+                    title="DevOps Engineer",
+                    company="V2Co",
+                    url="https://v2ex.com/t/1",
+                    source="v2ex",
+                    description="远程 DevOps position",
+                    tags=["DevOps", "远程"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+            "arcdev": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://arc.dev/j/1", "Data Eng"),
+                    title="Data Engineer",
+                    company="ArcCo",
+                    url="https://arc.dev/j/1",
+                    source="arcdev",
+                    description="Data pipeline engineering",
+                    tags=["data"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+            "yuancheng": [
+                JobPosting(
+                    id=JobPosting.generate_id("https://yuancheng.work/j/1", "AI 研究员"),
+                    title="AI 研究员",
+                    company="远程Co",
+                    url="https://yuancheng.work/j/1",
+                    source="yuancheng",
+                    description="远程 AI research position 远程",
+                    tags=["AI", "远程"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ],
+        }
+
+        original_create = ScraperOrchestrator._create_adapter
+
+        def mock_create_adapter(self_orch, site_id, site_config):
+            adapter = original_create(self_orch, site_id, site_config)
+            if site_id in fake_jobs:
+                adapter.fetch_jobs = AsyncMock(return_value=fake_jobs[site_id])
+            return adapter
+
+        with patch.object(ScraperOrchestrator, "_create_adapter", mock_create_adapter):
+            orch = ScraperOrchestrator(
+                sites_config_path=sites_yaml_7,
+                keywords_config_path=kw_yaml,
+                db_path=temp_db,
+            )
+            summary = await orch.run()
+
+        assert summary["total_scraped"] == 7, f"Should fetch 7 jobs total, got {summary['total_scraped']}"
+        assert summary["matched"] > 0, "Should have matched some jobs"
+        assert len(summary["errors"]) == 0, f"No errors expected: {summary['errors']}"
+
+        sm = StorageManager(db_path=temp_db)
+        stats = await sm.get_stats()
+        assert stats["total"] > 0
+        # Verify we have jobs from multiple sources
+        assert len(stats["by_source"]) >= 3, f"Expected jobs from >=3 sources, got: {stats['by_source']}"
+
+    async def test_seven_source_one_failure_continues(self, temp_db, sites_yaml_7, kw_yaml):
+        """If one of 7 adapters fails, the other 6 still process."""
+        from datetime import datetime
+
+        now = datetime.now()
+
+        def make_job(source, title, url):
+            return JobPosting(
+                id=JobPosting.generate_id(url, title),
+                title=title, company="TestCo", url=url,
+                source=source, description=f"AI {title}",
+                tags=["AI"],
+                first_seen=now, last_seen=now, last_updated=now,
+            )
+
+        original_create = ScraperOrchestrator._create_adapter
+
+        def mock_create_adapter(self_orch, site_id, site_config):
+            adapter = original_create(self_orch, site_id, site_config)
+            if site_id == "v2ex":
+                adapter.fetch_jobs = AsyncMock(side_effect=httpx.ConnectError("V2EX down"))
+            else:
+                adapter.fetch_jobs = AsyncMock(return_value=[
+                    make_job(site_id, f"AI Eng at {site_id}", f"https://{site_id}.test/j/1"),
+                ])
+            return adapter
+
+        with patch.object(ScraperOrchestrator, "_create_adapter", mock_create_adapter):
+            orch = ScraperOrchestrator(
+                sites_config_path=sites_yaml_7,
+                keywords_config_path=kw_yaml,
+                db_path=temp_db,
+            )
+            summary = await orch.run()
+
+        assert len(summary["errors"]) == 1, f"Expected 1 error, got: {summary['errors']}"
+        assert "v2ex" in summary["errors"][0]
+        assert summary["total_scraped"] == 6, "Other 6 adapters should still fetch"
+
+
+# ===========================================================================
+# Scenario 8: Single-site filter for all 7 sources
+# ===========================================================================
+
+
+class TestSingleSiteFilterAll7:
+    """Verify single-site filter works for each of the 7 adapters."""
+
+    @pytest.mark.parametrize("site_id", [
+        "remoteok", "eleduck", "weworkremotely",
+        "workgo", "v2ex", "arcdev", "yuancheng",
+    ])
+    async def test_single_site_filter(self, site_id, temp_db, sites_yaml_7, kw_yaml):
+        """When site=<id>, only that adapter is invoked."""
+        from datetime import datetime
+
+        now = datetime.now()
+        adapters_called = []
+
+        original_create = ScraperOrchestrator._create_adapter
+
+        def mock_create_adapter(self_orch, sid, site_config):
+            adapter = original_create(self_orch, sid, site_config)
+            adapters_called.append(sid)
+            adapter.fetch_jobs = AsyncMock(return_value=[
+                JobPosting(
+                    id=JobPosting.generate_id(f"https://{sid}.test/1", "AI Eng"),
+                    title="AI Engineer", company="Co", url=f"https://{sid}.test/1",
+                    source=sid, description="远程 AI developer role",
+                    tags=["AI", "远程"],
+                    first_seen=now, last_seen=now, last_updated=now,
+                ),
+            ])
+            return adapter
+
+        with patch.object(ScraperOrchestrator, "_create_adapter", mock_create_adapter):
+            orch = ScraperOrchestrator(
+                sites_config_path=sites_yaml_7,
+                keywords_config_path=kw_yaml,
+                db_path=temp_db,
+            )
+            summary = await orch.run(site=site_id)
+
+        assert adapters_called == [site_id], (
+            f"Only {site_id} adapter should be called, got: {adapters_called}"
+        )
+        assert summary["total_scraped"] == 1
+
+
+# ===========================================================================
+# Scenario 9: Cross-site dedup integration
+# ===========================================================================
+
+
+class TestCrossSiteDedup:
+    """Cross-site dedup removes duplicates posted on multiple boards."""
+
+    async def test_cross_site_dedup_removes_duplicate(self, temp_db, sites_yaml_7, kw_yaml):
+        """Same job posted on remoteok and arcdev gets deduplicated."""
+        from datetime import datetime
+
+        now = datetime.now()
+        earlier = datetime(2025, 1, 10, 12, 0, 0)
+
+        original_create = ScraperOrchestrator._create_adapter
+
+        def mock_create_adapter(self_orch, sid, site_config):
+            adapter = original_create(self_orch, sid, site_config)
+            if sid == "remoteok":
+                adapter.fetch_jobs = AsyncMock(return_value=[
+                    JobPosting(
+                        id=JobPosting.generate_id("https://remoteok.com/j/dup", "AI Engineer"),
+                        title="AI Engineer", company="Acme Inc",
+                        url="https://remoteok.com/j/dup", source="remoteok",
+                        description="AI engineer role", tags=["AI"],
+                        first_seen=earlier, last_seen=now, last_updated=now,
+                    ),
+                ])
+            elif sid == "arcdev":
+                adapter.fetch_jobs = AsyncMock(return_value=[
+                    JobPosting(
+                        id=JobPosting.generate_id("https://arc.dev/j/dup", "AI Engineer"),
+                        title="AI Engineer", company="Acme",
+                        url="https://arc.dev/j/dup", source="arcdev",
+                        description="Remote AI engineer role anywhere",
+                        tags=["AI", "remote"],
+                        first_seen=now, last_seen=now, last_updated=now,
+                    ),
+                ])
+            else:
+                adapter.fetch_jobs = AsyncMock(return_value=[])
+            return adapter
+
+        with patch.object(ScraperOrchestrator, "_create_adapter", mock_create_adapter):
+            orch = ScraperOrchestrator(
+                sites_config_path=sites_yaml_7,
+                keywords_config_path=kw_yaml,
+                db_path=temp_db,
+            )
+            summary = await orch.run()
+
+        # 2 scraped, both matched, but dedup removes 1
+        assert summary["total_scraped"] == 2
+        assert summary["matched"] == 2
+        assert summary["dedup_removed"] == 1
+        assert summary["new"] == 1, "Only one unique job should be stored"
+
+    async def test_no_dedup_for_different_jobs(self, temp_db, sites_yaml_7, kw_yaml):
+        """Different jobs from different sources are all kept."""
+        from datetime import datetime
+
+        now = datetime.now()
+
+        original_create = ScraperOrchestrator._create_adapter
+
+        def mock_create_adapter(self_orch, sid, site_config):
+            adapter = original_create(self_orch, sid, site_config)
+            if sid == "remoteok":
+                adapter.fetch_jobs = AsyncMock(return_value=[
+                    JobPosting(
+                        id=JobPosting.generate_id("https://remoteok.com/j/a", "AI Engineer"),
+                        title="AI Engineer", company="AlphaCo",
+                        url="https://remoteok.com/j/a", source="remoteok",
+                        description="AI engineer", tags=["AI"],
+                        first_seen=now, last_seen=now, last_updated=now,
+                    ),
+                ])
+            elif sid == "eleduck":
+                adapter.fetch_jobs = AsyncMock(return_value=[
+                    JobPosting(
+                        id=JobPosting.generate_id("https://eleduck.com/j/b", "LLM Dev"),
+                        title="LLM Developer", company="BetaCo",
+                        url="https://eleduck.com/j/b", source="eleduck",
+                        description="远程 LLM", tags=["LLM", "远程"],
+                        first_seen=now, last_seen=now, last_updated=now,
+                    ),
+                ])
+            else:
+                adapter.fetch_jobs = AsyncMock(return_value=[])
+            return adapter
+
+        with patch.object(ScraperOrchestrator, "_create_adapter", mock_create_adapter):
+            orch = ScraperOrchestrator(
+                sites_config_path=sites_yaml_7,
+                keywords_config_path=kw_yaml,
+                db_path=temp_db,
+            )
+            summary = await orch.run()
+
+        assert summary["dedup_removed"] == 0, "Different jobs should not be deduped"
+        assert summary["new"] == summary["matched"]
+
+
+# ===========================================================================
+# Scenario 10: Adapter registration completeness
+# ===========================================================================
+
+
+class TestAdapterRegistration:
+    """Verify the orchestrator's _ADAPTER_MAP has all 7 adapters."""
+
+    def test_all_seven_adapters_registered(self):
+        """_ADAPTER_MAP contains entries for all 7 source IDs."""
+        from scraper.orchestrator import _ADAPTER_MAP
+
+        expected = {"remoteok", "eleduck", "weworkremotely", "workgo", "v2ex", "arcdev", "yuancheng"}
+        assert set(_ADAPTER_MAP.keys()) == expected
+
+    def test_adapter_map_values_are_base_adapter_subclasses(self):
+        """All adapter classes in the map inherit from BaseAdapter."""
+        from scraper.adapters.base import BaseAdapter
+        from scraper.orchestrator import _ADAPTER_MAP
+
+        for site_id, cls in _ADAPTER_MAP.items():
+            assert issubclass(cls, BaseAdapter), f"{site_id} adapter is not a BaseAdapter subclass"
