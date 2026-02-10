@@ -13,12 +13,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config.settings import settings
 from app.routers import health, jobs, scraper, stats
+from app.services.scraper_service import close_scraper_storage, init_scraper_storage
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("Starting {} v{}", settings.APP_NAME, settings.APP_VERSION)
+    await init_scraper_storage()
     yield
+    await close_scraper_storage()
     logger.info("Shutting down {}", settings.APP_NAME)
 
 

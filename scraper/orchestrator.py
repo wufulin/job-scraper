@@ -38,13 +38,15 @@ class ScraperOrchestrator:
         sites_config_path: str = "config/sites.yaml",
         keywords_config_path: str = "config/keywords.yaml",
         db_path: str = "data/jobs.db",
+        storage: object | None = None,
     ) -> None:
         """Initialize orchestrator with config paths.
 
         Args:
             sites_config_path: Path to sites.yaml
             keywords_config_path: Path to keywords.yaml
-            db_path: Path to SQLite database
+            db_path: Path to SQLite database (used if storage not provided)
+            storage: Optional storage instance implementing StorageProtocol
         """
         # Load sites config
         with open(sites_config_path, "r", encoding="utf-8") as f:
@@ -53,7 +55,7 @@ class ScraperOrchestrator:
 
         # Create matcher and storage
         self.matcher = KeywordMatcher(config_path=keywords_config_path)
-        self.storage = StorageManager(db_path=db_path)
+        self.storage = storage if storage is not None else StorageManager(db_path=db_path)
 
         # Interrupt flag for graceful Ctrl+C
         self.interrupted = False
@@ -133,15 +135,11 @@ class ScraperOrchestrator:
         summary["dedup_removed"] = dedup_removed
 
         # Phase 3: Store deduplicated jobs
-        if not dry_run:
-            for job in deduped:
-                if self.interrupted:
-                    logger.warning("Interrupted during storage")
-                    break
-                new_count, updated_count = await self.storage.upsert_job(job)
-                summary["new"] += new_count
-                summary["updated"] += updated_count
-        else:
+        if not dry_run and deduped:
+            new_count, updated_count = await self.storage.upsert_jobs_batch(deduped)
+            summary["new"] += new_count
+            summary["updated"] += updated_count
+        elif dry_run:
             for job in deduped:
                 logger.debug("[dry-run] Matched: {}", job.title)
 

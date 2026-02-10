@@ -158,7 +158,26 @@ class StorageManager:
                 ))
                 await conn.commit()
                 return (1, 0)
-    
+
+    async def upsert_jobs_batch(self, jobs: list[JobPosting]) -> tuple[int, int]:
+        """Batch upsert multiple jobs.
+
+        Wraps individual upsert_job calls for compatibility with StorageProtocol.
+
+        Args:
+            jobs: List of JobPosting instances to upsert
+
+        Returns:
+            Tuple of (new_count, updated_count)
+        """
+        total_new = 0
+        total_updated = 0
+        for job in jobs:
+            new, updated = await self.upsert_job(job)
+            total_new += new
+            total_updated += updated
+        return (total_new, total_updated)
+
     async def get_all_jobs(self, active_only: bool = True) -> list[JobPosting]:
         """Retrieve all jobs from database.
         

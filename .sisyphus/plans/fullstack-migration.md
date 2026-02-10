@@ -901,7 +901,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 8. Orchestrator Integration with Supabase Storage
+- [x] 8. Orchestrator Integration with Supabase Storage
 
   **What to do**:
   - Modify `ScraperOrchestrator.__init__()` to accept `StorageProtocol` instance (dependency injection) instead of creating `StorageManager` internally
