@@ -1,0 +1,135 @@
+[
+  {
+    "randomKey": "o1ati8xjlv",
+    "title": "React + Node Developer for Prototype",
+    "jobType": "contract",
+    "jobRole": "engineering",
+    "applied": null,
+    "timeZone": "Perth",
+    "timeZoneOffset": "+08:00",
+    "clientTimeZoneRestriction": null,
+    "requiredCountries": [],
+    "minAnnualSalary": null,
+    "maxAnnualSalary": null,
+    "overlapHours": null,
+    "experienceLevel": "mid",
+    "urlString": "react-node-developer-for-prototype",
+    "postedAt": 1770520665,
+    "maxHourlyRate": 45,
+    "minHourlyRate": 30,
+    "company": {
+      "randomKey": null
+    },
+    "categories": [
+      {"name": "Node.js", "urlString": "nodejs"},
+      {"name": "React", "urlString": "reactjs"}
+    ]
+  },
+  {
+    "randomKey": "o0sxs1ly1t",
+    "title": "PPC and data entry",
+    "jobType": "permanent",
+    "jobRole": "marketing",
+    "applied": null,
+    "timeZone": null,
+    "timeZoneOffset": null,
+    "clientTimeZoneRestriction": null,
+    "requiredCountries": [],
+    "minAnnualSalary": 10000,
+    "maxAnnualSalary": 15000,
+    "overlapHours": null,
+    "experienceLevel": "junior",
+    "urlString": "ppc-and-data-entry",
+    "postedAt": 1770349613,
+    "maxHourlyRate": null,
+    "minHourlyRate": null,
+    "company": {
+      "randomKey": null
+    },
+    "categories": [
+      {"name": "Facebook advertising", "urlString": "facebook-advertising"},
+      {"name": "Google ads", "urlString": "google-ads"}
+    ]
+  },
+  {
+    "randomKey": "o0r23mo89j",
+    "title": "Foundational AI Engineer",
+    "jobType": "contract",
+    "jobRole": "engineering",
+    "applied": null,
+    "timeZone": null,
+    "timeZoneOffset": null,
+    "clientTimeZoneRestriction": null,
+    "requiredCountries": [],
+    "minAnnualSalary": null,
+    "maxAnnualSalary": null,
+    "overlapHours": null,
+    "experienceLevel": "senior",
+    "urlString": "foundational-ai-engineer",
+    "postedAt": 1770331629,
+    "maxHourlyRate": 55,
+    "minHourlyRate": 45,
+    "company": {
+      "randomKey": "nzxz8w91m3"
+    },
+    "categories": [
+      {"name": "Python", "urlString": "python"},
+      {"name": "MLflow", "urlString": "mlflow"},
+      {"name": "CI/CD", "urlString": "ci-cd"}
+    ]
+  },
+  {
+    "randomKey": "o0sirzxneo",
+    "title": "Front-End Developer (React/JS) - FT Freelance - LATAM",
+    "jobType": "contract",
+    "jobRole": "engineering",
+    "applied": null,
+    "timeZone": null,
+    "timeZoneOffset": null,
+    "clientTimeZoneRestriction": null,
+    "requiredCountries": ["TT", "PE", "BR"],
+    "minAnnualSalary": null,
+    "maxAnnualSalary": null,
+    "overlapHours": null,
+    "experienceLevel": "mid",
+    "urlString": "front-end-developer-react-js-ft-freelance-latam",
+    "postedAt": 1770345627,
+    "maxHourlyRate": 45,
+    "minHourlyRate": 25,
+    "company": {
+      "randomKey": "nb96fyh858"
+    },
+    "categories": [
+      {"name": "React", "urlString": "reactjs"},
+      {"name": "JavaScript", "urlString": "javascript"}
+    ]
+  },
+  {
+    "randomKey": "nzhi0upu1j",
+    "title": "Full-Stack Developer (Vue3 + TypeScript + Tailwind CSS)",
+    "jobType": "permanent",
+    "jobRole": "engineering",
+    "applied": null,
+    "timeZone": "Eastern Time (US & Canada)",
+    "timeZoneOffset": "-05:00",
+    "clientTimeZoneRestriction": "strict",
+    "requiredCountries": [],
+    "minAnnualSalary": 40000,
+    "maxAnnualSalary": 80000,
+    "overlapHours": null,
+    "experienceLevel": "mid",
+    "urlString": "full-stack-developer-vue3-typescript-tailwind-css",
+    "postedAt": 1769895827,
+    "maxHourlyRate": null,
+    "minHourlyRate": null,
+    "company": {
+      "randomKey": null
+    },
+    "categories": [
+      {"name": "Vue.js", "urlString": "vue"},
+      {"name": "Laravel", "urlString": "laravel"},
+      {"name": "Tailwind css", "urlString": "tailwind-css"},
+      {"name": "TypeScript", "urlString": "typescript"}
+    ]
+  }
+]

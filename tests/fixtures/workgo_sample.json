@@ -1,0 +1,73 @@
+{
+  "jobs": [
+    {
+      "id": "job_abc123",
+      "title": "Senior AI/ML Engineer",
+      "company": "TechCorp AI",
+      "description": "We are looking for a Senior AI/ML Engineer to join our team and build cutting-edge LLM applications.",
+      "location": "Remote",
+      "salary": "$150,000 - $200,000",
+      "job_type": "full-time",
+      "tags": ["AI", "Machine Learning", "Python", "LLM"],
+      "skills_required": ["Python", "TensorFlow", "PyTorch", "NLP"],
+      "experience_level": "Senior",
+      "published_at": "2026-02-08T10:00:00Z"
+    },
+    {
+      "id": "job_def456",
+      "title": "Remote ML Ops Engineer",
+      "company": "DataFlow Inc",
+      "description": "Join our MLOps team to build and maintain scalable machine learning pipelines.",
+      "location": "Remote - Worldwide",
+      "salary": "$120,000 - $160,000",
+      "job_type": "full-time",
+      "tags": ["MLOps", "Kubernetes", "Docker", "CI/CD"],
+      "skills_required": ["Kubernetes", "Docker", "Python", "AWS"],
+      "experience_level": "Mid-Senior",
+      "published_at": "2026-02-07T14:30:00Z"
+    },
+    {
+      "id": "job_ghi789",
+      "title": "AI Research Scientist",
+      "company": "NeuroLab",
+      "description": "Conduct research on large language models and develop novel architectures for NLP tasks.",
+      "location": "Remote - US/EU",
+      "salary": "$180,000 - $250,000",
+      "job_type": "full-time",
+      "tags": ["Research", "NLP", "Deep Learning", "Transformers"],
+      "skills_required": ["PhD", "PyTorch", "NLP", "Publications"],
+      "experience_level": "Senior",
+      "published_at": "2026-02-06T09:15:00Z"
+    },
+    {
+      "id": "job_jkl012",
+      "title": "",
+      "company": "EmptyTitle Corp",
+      "description": "This entry has an empty title and should be skipped.",
+      "location": "Remote",
+      "salary": null,
+      "job_type": "contract",
+      "tags": [],
+      "skills_required": [],
+      "experience_level": "Entry",
+      "published_at": "2026-02-05T08:00:00Z"
+    },
+    {
+      "id": "job_mno345",
+      "title": "Full Stack Developer (AI Focus)",
+      "company": "BuildAI",
+      "description": "Build AI-powered web applications with React and Python backend.",
+      "location": "Remote - Asia Pacific",
+      "salary": "$100,000 - $140,000",
+      "job_type": "full-time",
+      "tags": ["Full Stack", "React", "Python", "AI"],
+      "skills_required": ["React", "Python", "PostgreSQL", "OpenAI API"],
+      "experience_level": "Mid",
+      "published_at": "2026-02-04T11:45:00Z"
+    }
+  ],
+  "total": 5,
+  "page": 1,
+  "page_size": 20,
+  "has_more_pages": false
+}
