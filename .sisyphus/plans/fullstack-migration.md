@@ -1023,7 +1023,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ### Phase 3: Auth + Scheduler + Config
 
-- [ ] 10. Supabase Auth Integration
+- [x] 10. Supabase Auth Integration
 
   **What to do**:
   - Install `supabase`: `pip install supabase` (for Auth client only)
