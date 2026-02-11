@@ -101,7 +101,7 @@ class TestGetScrapeStatus:
 
         assert response.status_code == 200
 
-    async def test_status_returns_placeholder(self) -> None:
+    async def test_status_returns_not_found_for_unknown_run(self) -> None:
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as client:
@@ -110,8 +110,7 @@ class TestGetScrapeStatus:
         data = response.json()
         assert data["run_id"] == "some-run-id"
         assert "status" in data
-        assert data["status"] == "unknown"
-        assert "message" in data
+        assert data["status"] == "not_found"
 
     async def test_status_echoes_run_id(self) -> None:
         async with AsyncClient(

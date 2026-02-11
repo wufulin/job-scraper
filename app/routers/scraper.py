@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
+from app.services.scrape_run_service import get_scrape_run_service
 from app.services.scraper_service import get_scraper_service
 
 router = APIRouter(prefix="/api", tags=["scraper"])
@@ -31,8 +32,8 @@ async def trigger_scrape(
 
 @router.get("/scrape/status/{run_id}")
 async def scrape_status(run_id: str) -> dict:
-    return {
-        "run_id": run_id,
-        "status": "unknown",
-        "message": "Status tracking will be available in Phase 3",
-    }
+    run_service = get_scrape_run_service()
+    run = await run_service.get_run(run_id)
+    if run is None:
+        return {"run_id": run_id, "status": "not_found"}
+    return run.model_dump(mode="json")

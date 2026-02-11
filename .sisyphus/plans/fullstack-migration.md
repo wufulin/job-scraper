@@ -1182,7 +1182,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 12. APScheduler + Scrape Runs Tracking
+- [x] 12. APScheduler + Scrape Runs Tracking
 
   **What to do**:
   - Install `apscheduler`: `pip install apscheduler`

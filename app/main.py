@@ -12,7 +12,8 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config.settings import settings
-from app.routers import auth, config, health, jobs, scraper, stats
+from app.routers import auth, config, health, jobs, scraper, scheduler, stats
+from app.services.scheduler import init_scheduler, shutdown_scheduler
 from app.services.scraper_service import close_scraper_storage, init_scraper_storage
 
 
@@ -20,7 +21,9 @@ from app.services.scraper_service import close_scraper_storage, init_scraper_sto
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("Starting {} v{}", settings.APP_NAME, settings.APP_VERSION)
     await init_scraper_storage()
+    init_scheduler()
     yield
+    shutdown_scheduler()
     await close_scraper_storage()
     logger.info("Shutting down {}", settings.APP_NAME)
 
@@ -98,4 +101,5 @@ app.include_router(config.router)
 app.include_router(health.router)
 app.include_router(jobs.router)
 app.include_router(scraper.router)
+app.include_router(scheduler.router)
 app.include_router(stats.router)
