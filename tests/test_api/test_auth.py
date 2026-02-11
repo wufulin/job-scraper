@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import ValidationError
@@ -109,41 +110,51 @@ class TestUserPayload:
 
 
 class TestAuthEndpoints:
-    """Endpoint tests — will fail until auth router is implemented."""
 
-    @pytest.mark.skip(reason="auth router not yet implemented")
     async def test_register_returns_201(self) -> None:
         from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post(
-                "/api/auth/register",
-                json={"email": "new@example.com", "password": "password123"},
-            )
+        now = datetime.now(tz=timezone.utc)
+        mock_response = UserResponse(id="abc-123", email="new@example.com", created_at=now)
+
+        with patch("app.routers.auth.auth_service.register", return_value=mock_response):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/auth/register",
+                    json={"email": "new@example.com", "password": "password123"},
+                )
         assert response.status_code == 201
 
-    @pytest.mark.skip(reason="auth router not yet implemented")
     async def test_login_returns_token(self) -> None:
         from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post(
-                "/api/auth/login",
-                json={"email": "user@example.com", "password": "password123"},
-            )
+        mock_response = TokenResponse(
+            access_token="eyJ-test-token",
+            refresh_token="eyR-refresh",
+            expires_in=3600,
+        )
+
+        with patch("app.routers.auth.auth_service.login", return_value=mock_response):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/auth/login",
+                    json={"email": "user@example.com", "password": "password123"},
+                )
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
 
-    @pytest.mark.skip(reason="auth router not yet implemented")
     async def test_me_requires_auth(self) -> None:
         from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
         async with AsyncClient(
@@ -152,30 +163,40 @@ class TestAuthEndpoints:
             response = await client.get("/api/auth/me")
         assert response.status_code == 401
 
-    @pytest.mark.skip(reason="auth router not yet implemented")
     async def test_refresh_returns_new_token(self) -> None:
         from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post(
-                "/api/auth/refresh",
-                json={"refresh_token": "some-refresh-token"},
-            )
+        mock_response = TokenResponse(
+            access_token="eyJ-new-token",
+            refresh_token="eyR-new-refresh",
+            expires_in=3600,
+        )
+
+        with patch("app.routers.auth.auth_service.refresh", return_value=mock_response):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/auth/refresh",
+                    json={"refresh_token": "some-refresh-token"},
+                )
         assert response.status_code == 200
 
-    @pytest.mark.skip(reason="auth router not yet implemented")
     async def test_logout_returns_204(self) -> None:
         from httpx import ASGITransport, AsyncClient
+
         from app.main import app
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
-            response = await client.post(
-                "/api/auth/logout",
-                headers={"Authorization": "Bearer fake-token"},
-            )
+        mock_user = UserPayload(sub="uuid-1", email="user@example.com", role="user")
+
+        with patch("app.dependencies.verify_jwt", return_value=mock_user):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    "/api/auth/logout",
+                    headers={"Authorization": "Bearer fake-token"},
+                )
         assert response.status_code == 204

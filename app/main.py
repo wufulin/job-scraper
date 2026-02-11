@@ -12,7 +12,7 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config.settings import settings
-from app.routers import health, jobs, scraper, stats
+from app.routers import auth, health, jobs, scraper, stats
 from app.services.scraper_service import close_scraper_storage, init_scraper_storage
 
 
@@ -93,6 +93,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(jobs.router)
 app.include_router(scraper.router)
