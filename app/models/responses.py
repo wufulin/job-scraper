@@ -85,3 +85,39 @@ class UserPayload(BaseModel):
     sub: str
     email: str
     role: str = "user"
+
+
+class SiteConfigResponse(BaseModel):
+    id: str
+    name: str
+    url: str
+    adapter: str
+    enabled: bool
+    skip_location_match: bool = False
+    rate_limit_seconds: int = 2
+    max_pages: Optional[int] = None
+    config_json: str = "{}"
+
+
+class SiteConfigUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    rate_limit_seconds: Optional[int] = None
+    max_pages: Optional[int] = None
+    skip_location_match: Optional[bool] = None
+    config_json: Optional[str] = None
+
+
+class KeywordConfigResponse(BaseModel):
+    id: int
+    group_name: str
+    keyword: str
+    enabled: bool
+
+
+class KeywordCreate(BaseModel):
+    group_name: str
+    keyword: str
+
+
+class KeywordUpdate(BaseModel):
+    enabled: Optional[bool] = None
