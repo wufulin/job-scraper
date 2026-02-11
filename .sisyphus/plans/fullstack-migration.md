@@ -1111,7 +1111,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 11. Config-from-DB (Sites + Keywords + Seed)
+- [x] 11. Config-from-DB (Sites + Keywords + Seed)
 
   **What to do**:
   - Create `app/services/config_service.py`:
