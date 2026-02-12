@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Heart, Loader2, HeartOff } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useRequireAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import { fetchFavorites, fetchJob, removeFavorite } from "@/lib/api";
 import { JobCard } from "@/components/jobs/JobCard";
@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Job } from "@/lib/types";
 
 export default function FavoritesPage() {
-  const { user } = useAuth();
+  const { user, authenticated } = useRequireAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [favoriteJobIds, setFavoriteJobIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -40,8 +40,8 @@ export default function FavoritesPage() {
   }, []);
 
   useEffect(() => {
-    if (user) loadFavorites();
-  }, [user, loadFavorites]);
+    if (authenticated) loadFavorites();
+  }, [authenticated, loadFavorites]);
 
   const handleRemoveFavorite = useCallback(
     async (jobId: string) => {
