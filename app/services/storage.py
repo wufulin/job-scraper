@@ -11,6 +11,31 @@ from app.scraper.models import JobPosting
 
 _BATCH_SIZE = 100
 
+# ── Shared singleton ────────────────────────────────────────────────
+_shared_storage: SupabaseStorage | None = None
+
+
+async def init_storage() -> None:
+    """Create and initialise the single shared SupabaseStorage pool."""
+    global _shared_storage  # noqa: PLW0603
+    _shared_storage = SupabaseStorage()
+    await _shared_storage.init_pool()
+
+
+async def close_storage() -> None:
+    """Shut down the shared pool."""
+    global _shared_storage  # noqa: PLW0603
+    if _shared_storage:
+        await _shared_storage.close_pool()
+        _shared_storage = None
+
+
+def get_storage() -> SupabaseStorage:
+    """Return the shared SupabaseStorage instance (must be initialised first)."""
+    if _shared_storage is None:
+        raise RuntimeError("Storage not initialized — call init_storage() first")
+    return _shared_storage
+
 _UPSERT_SQL = """
     INSERT INTO jobs (
         id, title, company, url, source, published_at,
@@ -57,7 +82,10 @@ class SupabaseStorage:
 
     async def init_pool(self) -> None:
         self._pool = await asyncpg.create_pool(
-            self._database_url, min_size=1, max_size=5,
+            self._database_url,
+            min_size=2,
+            max_size=10,
+            statement_cache_size=0,
         )
         logger.info("asyncpg connection pool created")
 
