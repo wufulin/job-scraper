@@ -30,21 +30,22 @@ class ConfigService:
             return self._site_cache
 
         rows = await self._pool.fetch(
-            "SELECT id, name, url, adapter, enabled, skip_location_match, "
-            "rate_limit_seconds, max_pages, config_json, created_at, updated_at "
+            "SELECT id, site_key, name, url, adapter, enabled, skip_location_match, "
+            "rate_limit_seconds, max_pages, extra_config, created_at, updated_at "
             "FROM site_configs ORDER BY id"
         )
         self._site_cache = [
             {
-                "id": r.id,
-                "name": r.name,
-                "url": r.url,
-                "adapter": r.adapter,
-                "enabled": r.enabled,
-                "skip_location_match": r.skip_location_match,
-                "rate_limit_seconds": r.rate_limit_seconds,
-                "max_pages": r.max_pages,
-                "config_json": r.config_json,
+                "id": r["id"],
+                "site_key": r["site_key"],
+                "name": r["name"],
+                "url": r["url"],
+                "adapter": r["adapter"],
+                "enabled": r["enabled"],
+                "skip_location_match": r["skip_location_match"],
+                "rate_limit_seconds": r["rate_limit_seconds"],
+                "max_pages": r["max_pages"],
+                "extra_config": r["extra_config"],
             }
             for r in rows
         ]
@@ -53,23 +54,24 @@ class ConfigService:
 
     async def get_site_config_by_id(self, site_id: str) -> Optional[dict]:
         row = await self._pool.fetchrow(
-            "SELECT id, name, url, adapter, enabled, skip_location_match, "
-            "rate_limit_seconds, max_pages, config_json "
+            "SELECT id, site_key, name, url, adapter, enabled, skip_location_match, "
+            "rate_limit_seconds, max_pages, extra_config "
             "FROM site_configs WHERE id = $1",
             site_id,
         )
         if row is None:
             return None
         return {
-            "id": row.id,
-            "name": row.name,
-            "url": row.url,
-            "adapter": row.adapter,
-            "enabled": row.enabled,
-            "skip_location_match": row.skip_location_match,
-            "rate_limit_seconds": row.rate_limit_seconds,
-            "max_pages": row.max_pages,
-            "config_json": row.config_json,
+            "id": row["id"],
+            "site_key": row["site_key"],
+            "name": row["name"],
+            "url": row["url"],
+            "adapter": row["adapter"],
+            "enabled": row["enabled"],
+            "skip_location_match": row["skip_location_match"],
+            "rate_limit_seconds": row["rate_limit_seconds"],
+            "max_pages": row["max_pages"],
+            "extra_config": row["extra_config"],
         }
 
     async def update_site_config(self, site_id: str, **kwargs: Any) -> None:
@@ -82,7 +84,7 @@ class ConfigService:
             "rate_limit_seconds": "rate_limit_seconds",
             "max_pages": "max_pages",
             "skip_location_match": "skip_location_match",
-            "config_json": "config_json",
+            "extra_config": "extra_config",
         }
 
         for key, column in field_map.items():
@@ -115,10 +117,10 @@ class ConfigService:
         )
         self._keyword_cache = [
             {
-                "id": r.id,
-                "group_name": r.group_name,
-                "keyword": r.keyword,
-                "enabled": r.enabled,
+                "id": r["id"],
+                "group_name": r["group_name"],
+                "keyword": r["keyword"],
+                "enabled": r["enabled"],
             }
             for r in rows
         ]
@@ -134,10 +136,10 @@ class ConfigService:
         if row is None:
             return None
         return {
-            "id": row.id,
-            "group_name": row.group_name,
-            "keyword": row.keyword,
-            "enabled": row.enabled,
+            "id": row["id"],
+            "group_name": row["group_name"],
+            "keyword": row["keyword"],
+            "enabled": row["enabled"],
         }
 
     async def update_keyword(self, keyword_id: int, **kwargs: Any) -> None:
@@ -169,6 +171,20 @@ class ConfigService:
         self._invalidate_keyword_cache()
         logger.info("Added keyword: {} / {}", group_name, keyword)
         return {"id": 0, "group_name": group_name, "keyword": keyword, "enabled": True}
+
+    async def get_match_rules(self) -> list[dict]:
+        rows = await self._pool.fetch(
+            "SELECT id, rule_name, expression, skip_location_for "
+            "FROM match_rules ORDER BY id"
+        )
+        return [
+            {
+                "rule_name": r["rule_name"],
+                "expression": r["expression"],
+                "skip_location_for": list(r["skip_location_for"]),
+            }
+            for r in rows
+        ]
 
     def _invalidate_site_cache(self) -> None:
         self._site_cache = None
