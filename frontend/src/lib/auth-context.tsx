@@ -8,11 +8,13 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
 interface AuthContextValue {
   user: User | null;
+  accessToken: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
@@ -24,11 +26,13 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setAccessToken(session?.access_token ?? null);
       setLoading(false);
     });
 
@@ -36,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setAccessToken(session?.access_token ?? null);
       setLoading(false);
     });
 
@@ -72,8 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, register, logout, loginWithOAuth }),
-    [user, loading, login, register, logout, loginWithOAuth]
+    () => ({ user, accessToken, loading, login, register, logout, loginWithOAuth }),
+    [user, accessToken, loading, login, register, logout, loginWithOAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -85,4 +90,17 @@ export function useAuth(): AuthContextValue {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return ctx;
+}
+
+export function useRequireAuth() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+    }
+  }, [loading, user, router]);
+
+  return { user, loading, authenticated: !loading && !!user };
 }

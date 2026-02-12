@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
 import { getUnreadCount } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { NotificationSheet } from "@/components/notifications/NotificationSheet";
@@ -11,27 +10,23 @@ import { NotificationSheet } from "@/components/notifications/NotificationSheet"
 const POLL_INTERVAL_MS = 30_000;
 
 export function NotificationBell() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [count, setCount] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshCount = useCallback(async () => {
+    if (!accessToken) return;
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) return;
-      const res = await getUnreadCount(token);
+      const res = await getUnreadCount(accessToken);
       setCount(res.count);
     } catch {
       /* empty */
     }
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !accessToken) {
       setCount(0);
       return;
     }
@@ -42,7 +37,7 @@ export function NotificationBell() {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [user, refreshCount]);
+  }, [user, accessToken, refreshCount]);
 
   if (!user) return null;
 
