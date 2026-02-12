@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 
-import yaml
 from loguru import logger
 
 from app.scraper.adapters.api import EleduckAdapter, RemoteOKAdapter, WorkGoAdapter
@@ -34,24 +33,26 @@ class ScraperOrchestrator:
 
     def __init__(
         self,
-        sites_config_path: str = "config/sites.yaml",
-        keywords_config_path: str = "config/keywords.yaml",
+        sites_config: dict,
+        keywords_config: dict,
         storage: object | None = None,
     ) -> None:
-        """Initialize orchestrator with config paths.
+        """Initialize orchestrator with config dicts.
 
         Args:
-            sites_config_path: Path to sites.yaml
-            keywords_config_path: Path to keywords.yaml
-            storage: Storage instance implementing StorageProtocol (required)
+            sites_config: Dict of site_id → site configuration (same shape
+                as ``sites.yaml["sites"]``).
+            keywords_config: Dict with ``keyword_groups`` and ``match_rules``
+                keys (same shape as ``keywords.yaml``).
+            storage: Storage instance implementing StorageProtocol (required).
         """
-        # Load sites config
-        with open(sites_config_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        self.sites_config: dict = data.get("sites", {})
+        self.sites_config: dict = sites_config
 
         # Create matcher and storage
-        self.matcher = KeywordMatcher(config_path=keywords_config_path)
+        self.matcher = KeywordMatcher(
+            keyword_groups=keywords_config["keyword_groups"],
+            match_rules=keywords_config["match_rules"],
+        )
         if storage is None:
             raise ValueError("Storage must be provided")
         self.storage = storage

@@ -9,6 +9,7 @@ from loguru import logger
 from app.services.scrape_run_service import get_scrape_run_service
 from app.services.scraper_service import get_scraper_service
 from app.services.notification_service import NotificationService
+from app.services.storage import get_storage
 
 _scheduler: SchedulerService | None = None
 
@@ -102,34 +103,30 @@ class SchedulerService:
 
     async def _check_notifications_after_scrape(self) -> None:
         try:
-            import asyncpg
-            from app.config.settings import settings
+            storage = get_storage()
+            pool = storage._pool  # noqa: SLF001
 
-            pool = await asyncpg.create_pool(settings.DATABASE_URL)
-            try:
-                rows = await pool.fetch(
-                    "SELECT id, title, company, description, source "
-                    "FROM jobs WHERE first_seen > NOW() - INTERVAL '10 minutes'"
-                )
-                if not rows:
-                    return
+            rows = await pool.fetch(
+                "SELECT id, title, company, description, source "
+                "FROM jobs WHERE first_seen > NOW() - INTERVAL '10 minutes'"
+            )
+            if not rows:
+                return
 
-                new_jobs = [
-                    {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "company": row["company"],
-                        "description": row["description"],
-                        "source": row["source"],
-                    }
-                    for row in rows
-                ]
+            new_jobs = [
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "company": row["company"],
+                    "description": row["description"],
+                    "source": row["source"],
+                }
+                for row in rows
+            ]
 
-                svc = NotificationService(pool=pool)
-                created = await svc.check_subscriptions_after_scrape(new_jobs)
-                logger.info("Post-scrape notification check — {} created", created)
-            finally:
-                await pool.close()
+            svc = NotificationService(pool=pool)
+            created = await svc.check_subscriptions_after_scrape(new_jobs)
+            logger.info("Post-scrape notification check — {} created", created)
         except Exception:
             logger.exception("Failed to check subscriptions after scrape")
 

@@ -13,8 +13,6 @@ RUN pip install --no-cache-dir -e "."
 
 # Copy application code
 COPY app/ ./app/
-COPY scraper/ ./scraper/
-COPY config/ ./config/
 
 # Create logs directory
 RUN mkdir -p logs

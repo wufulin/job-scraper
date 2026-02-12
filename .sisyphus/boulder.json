@@ -1,9 +1,7 @@
 {
-  "active_plan": "D:\\code\\backend\\job-scraper\\.sisyphus\\plans\\fix-jobs-500.md",
-  "started_at": "2026-02-12T13:43:14.426Z",
-  "session_ids": [
-    "ses_3b7860b91ffexw16V1QAsNBw7j"
-  ],
-  "plan_name": "fix-jobs-500",
-  "agent": "atlas"
+  "active_plan": null,
+  "started_at": null,
+  "session_ids": [],
+  "plan_name": null,
+  "agent": null
 }

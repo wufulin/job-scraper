@@ -5,40 +5,13 @@ import math
 from typing import Optional
 
 from app.models.responses import JobListResponse, JobResponse, PaginationMeta
-from app.services.storage import SupabaseStorage
-
-# Module-level storage singleton (initialized during app lifespan)
-_storage: SupabaseStorage | None = None
-
-
-async def init_job_storage() -> None:
-    """Initialize the job storage pool."""
-    global _storage
-    from app.config.settings import settings
-    if settings.DATABASE_URL and _storage is None:
-        _storage = SupabaseStorage()
-        await _storage.init_pool()
-
-
-async def close_job_storage() -> None:
-    """Close the job storage pool."""
-    global _storage
-    if _storage:
-        await _storage.close_pool()
-        _storage = None
-
-
-def get_job_storage() -> SupabaseStorage:
-    """Get the initialized storage instance."""
-    if _storage is None:
-        raise RuntimeError("Job storage not initialized. Call init_job_storage() during app startup.")
-    return _storage
+from app.services.storage import SupabaseStorage, get_storage
 
 
 class JobService:
 
     def __init__(self, storage: Optional[SupabaseStorage] = None) -> None:
-        self._storage = storage or get_job_storage()
+        self._storage = storage or get_storage()
 
     async def list_jobs(
         self,
