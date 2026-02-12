@@ -7,7 +7,7 @@ import asyncpg
 from loguru import logger
 
 from app.config.settings import settings
-from scraper.models import JobPosting
+from app.scraper.models import JobPosting
 
 _BATCH_SIZE = 100
 
@@ -56,7 +56,9 @@ class SupabaseStorage:
         self._pool: Optional[asyncpg.Pool] = None
 
     async def init_pool(self) -> None:
-        self._pool = await asyncpg.create_pool(self._database_url)
+        self._pool = await asyncpg.create_pool(
+            self._database_url, min_size=1, max_size=5,
+        )
         logger.info("asyncpg connection pool created")
 
     async def close_pool(self) -> None:
