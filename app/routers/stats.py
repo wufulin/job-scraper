@@ -5,26 +5,20 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import Response
 
-from app.services.storage import SupabaseStorage
+from app.services.storage import get_storage
 
 router = APIRouter(prefix="/api", tags=["stats"])
 
 
-async def get_storage() -> SupabaseStorage:
-    storage = SupabaseStorage()
-    await storage.init_pool()
-    return storage
-
-
 @router.get("/stats")
 async def get_stats() -> dict:
-    storage = await get_storage()
+    storage = get_storage()
     return await storage.get_stats()
 
 
 @router.get("/export")
 async def export_jobs() -> Response:
-    storage = await get_storage()
+    storage = get_storage()
     jobs = await storage.get_all_jobs()
 
     jobs_data = []

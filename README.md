@@ -1,308 +1,331 @@
-# Remote AI Job Scraper
+# Remote AI Job Aggregator
 
-Python CLI tool that scrapes remote AI/ML job postings from multiple sources, filters by configurable keywords, and stores results in SQLite.
+Full-stack web application that aggregates remote AI/ML job postings from multiple sources with intelligent filtering, cross-site deduplication, and automated scheduling.
 
 ## Features
 
-- **7 data sources**: Scrapes from RemoteOK, Eleduck, WeWorkRemotely, V2EX, Arc.dev, WorkGo, and 远程.work
-- **Async architecture**: Concurrent scraping with asyncio, httpx.AsyncClient, and aiosqlite for high throughput
-- **Cross-site deduplication**: Fuzzy matching removes duplicate postings across different sources
-- **Browser automation**: Playwright-based scraping for JavaScript-heavy sites (Arc.dev)
-- **Smart keyword matching**: Supports CJK (Chinese, Japanese, Korean) characters for flexible job filtering
-- **Async SQLite storage**: aiosqlite-based storage with upsert deduplication
-- **JSON export**: Export matched jobs to JSON format for further analysis
-- **Configurable keywords**: Customize job title and description matching via YAML config
-- **Graceful interruption**: Ctrl+C handling saves partial results before exit
-- **Rotating user agents**: Avoids detection by rotating request headers
+- **REST API**: FastAPI backend with 10 endpoint groups (jobs, scraper, stats, auth, config, scheduler, favorites, notifications, subscriptions, health)
+- **Scheduled Scraping**: APScheduler runs automated scraping every 2 hours
+- **Authentication**: Supabase Auth with JWT verification and row-level security (RLS)
+- **7 Data Sources**: RemoteOK, Eleduck, WeWorkRemotely, V2EX, Arc.dev, WorkGo, 远程.work
+- **Cross-site Deduplication**: Fuzzy matching removes duplicate postings across sources
+- **Smart Keyword Matching**: CJK (Chinese, Japanese, Korean) support with configurable rules
+- **User Features**: Job favorites, email subscriptions, notifications
+- **Admin Dashboard**: Manage scraper configuration, view statistics, trigger manual scrapes
+- **Docker Deployment**: Production-ready Docker Compose setup with nginx reverse proxy
+- **Modern Frontend**: Next.js 16 with TypeScript, Tailwind CSS, and shadcn/ui components
 
 ## Data Sources
 
 | Source | Type | Adapter | Status |
 |--------|------|---------|--------|
-| RemoteOK | JSON API | `api.py` | Enabled |
-| Eleduck (电鸭) | JSON API | `api.py` | Enabled |
-| WeWorkRemotely | RSS Feed | `rss.py` | Enabled |
-| V2EX | Hybrid HTML+API | `hybrid.py` | Enabled |
-| Arc.dev | Browser (Playwright) | `browser.py` | Enabled |
-| WorkGo | JSON API | `api.py` | Disabled |
-| 远程.work | HTML Scraping | `html.py` | Disabled |
+| RemoteOK | JSON API | `app/scraper/adapters/api.py` | Enabled |
+| Eleduck (电鸭) | JSON API (paginated) | `app/scraper/adapters/api.py` | Enabled |
+| WeWorkRemotely | RSS Feed | `app/scraper/adapters/rss.py` | Enabled |
+| V2EX | Hybrid HTML+API | `app/scraper/adapters/hybrid.py` | Enabled |
+| Arc.dev | Browser (Playwright) | `app/scraper/adapters/browser.py` | Enabled |
+| WorkGo | JSON API (Clerk auth) | `app/scraper/adapters/api.py` | Disabled* |
+| 远程.work | HTML Scraping | `app/scraper/adapters/html.py` | Disabled** |
+
+\* Requires `WORKGO_COOKIE` environment variable (Clerk `__client` cookie after Google OAuth)
+\*\* Domain redirects to arc.dev — adapter returns empty list
 
 ## Quick Start
 
-### Requirements
+### Prerequisites
 
-- Python 3.11 or higher
-- (Optional) Playwright browsers for Arc.dev scraping: `playwright install chromium`
+- Python 3.11+
+- Node.js 18+ and pnpm
+- PostgreSQL (or Supabase account)
+- (Optional) Docker and Docker Compose
 
-### Installation
+### Backend Setup
 
 ```bash
 git clone https://github.com/wufulin/job-scraper.git
 cd job-scraper
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install Python dependencies
 pip install -e ".[dev]"
+
+# Install Playwright browsers (for Arc.dev scraping)
+playwright install chromium
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL, SUPABASE_URL, SUPABASE_KEY
+
+# Start FastAPI development server
+uvicorn app.main:app --reload
 ```
 
-### First Run
+Backend runs at `http://localhost:8000`. API docs at `http://localhost:8000/docs`.
+
+### Frontend Setup
 
 ```bash
-python main.py scrape
+cd frontend
+pnpm install
+
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local with NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Start Next.js development server
+pnpm dev
 ```
 
-## Usage
+Frontend runs at `http://localhost:3000`.
 
-### Scrape Jobs
-
-Fetch jobs from all configured sources:
+### Docker Deployment
 
 ```bash
-python main.py scrape
+# Configure environment
+cp .env.example .env.docker
+# Edit .env.docker with production values
+
+# Start all services (backend + frontend + nginx)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+
+# Stop services
+docker-compose down
 ```
 
-Enable verbose logging:
+Application serves at `http://localhost` via nginx reverse proxy.
 
-```bash
-python main.py --verbose scrape
-```
+## API Endpoints
 
-Note: The `--verbose` flag must come **before** the subcommand.
+| Router | Prefix | Description |
+|--------|--------|-------------|
+| health | `/api/health` | Health check |
+| jobs | `/api/jobs` | List, search, and retrieve job postings |
+| scraper | `/api/scrape` | Trigger manual scrapes, check scrape status |
+| stats | `/api/stats` | Database statistics (total jobs, by source, etc.) |
+| auth | `/api/auth` | User authentication (login, register, JWT verification) |
+| config | `/api/config` | Manage site configs, keywords, match rules |
+| scheduler | `/api/scheduler` | View and manage scheduled scraping jobs |
+| favorites | `/api/favorites` | User job favorites (add, remove, list) |
+| notifications | `/api/notifications` | User notifications for new job matches |
+| subscriptions | `/api/subscriptions` | Email subscription management |
 
-Scrape from a specific site:
-
-```bash
-python main.py scrape --site remoteok
-python main.py scrape --site eleduck
-python main.py scrape --site weworkremotely
-python main.py scrape --site v2ex
-python main.py scrape --site arcdev
-python main.py scrape --site workgo
-python main.py scrape --site yuancheng
-```
-
-Dry-run mode (fetch and match without saving):
-
-```bash
-python main.py scrape --dry-run
-```
-
-### View Statistics
-
-Display database statistics:
-
-```bash
-python main.py stats
-```
-
-Shows total jobs, active/inactive counts, and breakdown by source.
-
-### Export Jobs
-
-Export all matched jobs to JSON:
-
-```bash
-python main.py export --format json
-```
-
-Export to a custom file:
-
-```bash
-python main.py export --format json --output path/to/file.json
-```
+Interactive API docs available at `/docs` (Swagger UI) and `/redoc` (ReDoc).
 
 ## Configuration
 
-### Sites Configuration
+All configuration is **database-driven** — managed via the Config API or admin dashboard.
 
-Edit `config/sites.yaml` to configure data sources. Each site has an adapter type, URL, and optional settings:
+### Database Tables
 
-```yaml
-remoteok:
-  enabled: true
-  adapter: api
-  url: https://remoteok.com/api
-  skip_location_match: true
-  rate_limit_seconds: 2
+| Table | Purpose |
+|-------|---------|
+| `site_configs` | Data source settings (URL, adapter type, rate limits, enabled/disabled) |
+| `keyword_configs` | Keyword groups for matching (location, technology) |
+| `match_rules` | Matching logic and site-specific overrides |
+| `jobs` | Stored job postings |
+| `scrape_runs` | Scrape execution history |
+| `users` | User accounts (Supabase Auth) |
+| `favorites` | User job bookmarks |
+| `subscriptions` | Email subscription preferences |
+| `notifications` | User notification queue |
 
-eleduck:
-  enabled: true
-  adapter: api
-  url: https://svc.eleduck.com/api/v1/posts
-  params:
-    category: 5
-  max_pages: 5
+### Keyword Matching
 
-weworkremotely:
-  enabled: true
-  adapter: rss
-  url: https://weworkremotely.com/remote-jobs.rss
-  skip_location_match: true
+- **AND** between keyword groups (e.g., must match both `location` AND `technology`)
+- **OR** within each group (e.g., "remote" OR "远程" OR "work from home")
+- Short English keywords (≤3 chars) use `\b` word-boundary matching to prevent false positives
+- CJK keywords use substring matching
+- Site-specific overrides: RemoteOK and WeWorkRemotely skip location matching (all jobs are remote by default)
 
-v2ex:
-  enabled: true
-  adapter: hybrid
-  url: https://www.v2ex.com/go/remote
-  api_base: https://www.v2ex.com/api/topics/show.json
-  rate_limit_seconds: 6
-  max_pages: 3
+## Architecture
 
-arcdev:
-  enabled: true
-  adapter: browser
-  url: https://arc.dev/remote-jobs
-  skip_location_match: true
+```
+┌───────────────────────────────────────────────────────────┐
+│                        Frontend                           │
+│       Next.js 16 + TypeScript + Tailwind + shadcn/ui      │
+└─────────────────────────┬─────────────────────────────────┘
+                          │ HTTP/REST
+┌─────────────────────────▼─────────────────────────────────┐
+│                    FastAPI Backend                         │
+│                    (app/main.py)                           │
+│                                                           │
+│  Routers → Services → Orchestrator                        │
+│                          │                                │
+│            ┌─────────────┼─────────────┐                  │
+│            ▼             ▼             ▼                   │
+│        Adapter 1    Adapter 2    Adapter N                 │
+│       (RemoteOK)   (Eleduck)     (...)                    │
+│            │             │             │                   │
+│            └─────────────┼─────────────┘                  │
+│                          ▼                                │
+│                   Keyword Matcher                         │
+│                          ▼                                │
+│                Cross-site Deduplicator                    │
+│                          ▼                                │
+│                  SupabaseStorage (asyncpg)                │
+└───────────────────────────────────────────────────────────┘
+                          │
+               ┌──────────▼──────────┐
+               │  Supabase PostgreSQL │
+               │  (with RLS policies) │
+               └─────────────────────┘
 ```
 
-### Keywords Configuration
+### Pipeline Flow
 
-Edit `config/keywords.yaml` to customize job matching. Jobs must match at least one keyword from each required group (AND between groups, OR within groups):
-
-```yaml
-keyword_groups:
-  location:
-    - "remote"
-    - "远程"
-    - "work from home"
-  technology:
-    - "AI"
-    - "LLM"
-    - "machine learning"
-    - "GPT"
-    - "大模型"
-
-match_rules:
-  default: "location AND technology"
-  skip_location_for:
-    - "remoteok"
-    - "weworkremotely"
-```
-
-To add a new keyword, simply append it to the appropriate group in `config/keywords.yaml`. Short English keywords like "AI" and "NLP" use word-boundary matching to prevent false positives (e.g., "AI" won't match "email"). CJK keywords use substring matching.
-
-### Environment Variables
-
-The `.env.example` file lists environment variables: `PROXY_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LOG_LEVEL` (planned for future features), and `WORKGO_COOKIE` (WorkGo Clerk __client cookie for authentication).
+1. **Request** — API endpoint or scheduler triggers a scrape
+2. **Orchestrator** — Initializes enabled adapters, runs concurrent fetch via `asyncio.gather()` (semaphore=3)
+3. **Adapters** — Each adapter fetches jobs from its source (API, RSS, browser, or hybrid)
+4. **Matcher** — Filters jobs by keyword rules (AND between groups, OR within groups)
+5. **Deduplicator** — Removes cross-site duplicates using fuzzy company+title matching
+6. **Storage** — Upserts deduplicated jobs to PostgreSQL via asyncpg connection pool
+7. **Response** — Returns summary (total fetched, matched, deduplicated, stored)
 
 ## Project Structure
 
 ```
 job-scraper/
-├── main.py                # CLI entry point (argparse + asyncio.run)
-├── pyproject.toml         # Project metadata and dependencies
-├── CLAUDE.md              # Claude Code project context
-├── .gitignore
-├── .env.example           # Environment variables (WorkGo auth, planned features)
-├── config/
-│   ├── sites.yaml         # Data source configuration (7 sites)
-│   └── keywords.yaml      # Keyword matching rules
-├── scraper/
-│   ├── models.py          # Pydantic JobPosting model
-│   ├── logger.py          # Loguru logging setup
-│   ├── orchestrator.py    # Async scraping pipeline with dedup
-│   ├── adapters/
-│   │   ├── base.py        # BaseAdapter ABC (async)
-│   │   ├── api.py         # RemoteOKAdapter, EleduckAdapter, WorkGoAdapter
-│   │   ├── rss.py         # WeWorkRemotelyAdapter
-│   │   ├── browser.py     # ArcDevAdapter (Playwright)
-│   │   ├── hybrid.py      # V2EXAdapter (HTML + API)
-│   │   └── html.py        # YuanchengAdapter (BeautifulSoup)
-│   └── utils/
-│       ├── matcher.py     # Keyword matching with CJK support
-│       ├── storage.py     # Async SQLite storage (aiosqlite)
-│       └── dedup.py       # Cross-site deduplication
-├── tests/                 # 335 tests
-│   ├── test_matcher.py
-│   ├── test_storage.py
-│   ├── test_integration.py
-│   ├── test_dedup.py
-│   ├── test_adapters/
-│   │   ├── test_remoteok.py
-│   │   ├── test_eleduck.py
-│   │   ├── test_wwr.py
-│   │   ├── test_workgo.py
-│   │   ├── test_v2ex.py
-│   │   ├── test_arcdev.py
-│   │   └── test_yuancheng.py
-│   └── fixtures/          # Sample API/RSS/HTML responses
-├── docs/                  # Design documents (Chinese)
-├── data/                  # SQLite DB and exports (gitignored)
-└── logs/                  # Log files (gitignored)
+├── app/                          # FastAPI backend
+│   ├── main.py                   # App entry point with lifespan management
+│   ├── config/
+│   │   └── settings.py           # Pydantic settings (env vars)
+│   ├── routers/                  # API endpoint handlers
+│   │   ├── health.py
+│   │   ├── jobs.py
+│   │   ├── scraper.py
+│   │   ├── stats.py
+│   │   ├── auth.py
+│   │   ├── config.py
+│   │   ├── scheduler.py
+│   │   ├── favorites.py
+│   │   ├── notifications.py
+│   │   └── subscriptions.py
+│   ├── services/                 # Business logic
+│   │   ├── storage.py            # SupabaseStorage (asyncpg pool)
+│   │   ├── job_service.py        # Job CRUD operations
+│   │   ├── scraper_service.py    # Scrape orchestration
+│   │   ├── config_service.py     # DB-driven configuration
+│   │   ├── scheduler.py          # APScheduler setup
+│   │   └── auth_service.py       # JWT verification
+│   ├── models/                   # Pydantic request/response schemas
+│   └── scraper/                  # Scraper module
+│       ├── models.py             # JobPosting model
+│       ├── orchestrator.py       # Async pipeline coordinator
+│       ├── adapters/             # Data source adapters
+│       │   ├── base.py           # BaseAdapter ABC
+│       │   ├── api.py            # RemoteOK, Eleduck, WorkGo
+│       │   ├── rss.py            # WeWorkRemotely
+│       │   ├── browser.py        # Arc.dev (Playwright)
+│       │   ├── hybrid.py         # V2EX (HTML listing + JSON API)
+│       │   └── html.py           # Yuancheng (disabled)
+│       └── utils/
+│           ├── matcher.py        # Keyword matching (CJK support)
+│           └── dedup.py          # Cross-site deduplication
+├── frontend/                     # Next.js 16 frontend
+│   ├── src/
+│   │   ├── app/                  # App Router pages
+│   │   ├── components/           # React components (shadcn/ui)
+│   │   └── lib/                  # Supabase client, utilities
+│   ├── package.json
+│   └── Dockerfile
+├── supabase/
+│   └── migrations/               # SQL migration files (001-004)
+├── docker-compose.yml            # Backend + Frontend + nginx
+├── Dockerfile.backend            # Playwright base image
+├── nginx.conf                    # Reverse proxy configuration
+├── pyproject.toml                # Python project metadata
+└── CLAUDE.md                     # Project context for Claude Code
 ```
-
-## Architecture
-
-```
-CLI (main.py + asyncio.run)
-    ↓
-Orchestrator (async, asyncio.gather with semaphore)
-    ↓
-Adapters (7 sources: API, RSS, Browser, Hybrid, HTML)
-    ↓
-Matcher (keyword filtering)
-    ↓
-Cross-site Dedup (DedupManager)
-    ↓
-Storage (async SQLite via aiosqlite)
-```
-
-The orchestrator coordinates the scraping pipeline:
-1. Initializes adapters for enabled sources
-2. Fetches jobs concurrently (asyncio.gather with semaphore of 3)
-3. Applies keyword matching to filter results
-4. Runs cross-site deduplication (fuzzy company+title matching)
-5. Stores deduplicated results in async SQLite
-6. Returns summary statistics
-
-## Testing
-
-Run the test suite:
-
-```bash
-python -m pytest tests/ -v
-```
-
-The project includes 335 tests covering all 7 adapters, matching logic, storage operations, deduplication, integration tests, and CLI commands. Tests complete in approximately 10 seconds.
 
 ## Tech Stack
 
-- **httpx**: Async HTTP client (httpx.AsyncClient) for API requests
-- **aiosqlite**: Async SQLite database access
-- **playwright**: Browser automation for JavaScript-heavy sites
-- **feedparser**: RSS feed parsing for WeWorkRemotely
-- **beautifulsoup4**: HTML parsing for V2EX and Yuancheng adapters
-- **Pydantic v2**: Data validation and serialization
-- **loguru**: Structured logging
-- **fake-useragent**: Rotating user agents for requests
-- **chardet**: Character encoding detection
-- **pyyaml**: YAML configuration parsing
-- **pytest-asyncio**: Async test support
+### Backend
+
+| Library | Purpose |
+|---------|---------|
+| FastAPI | Async web framework |
+| asyncpg | PostgreSQL driver |
+| Supabase | Database + Auth + RLS |
+| APScheduler | Scheduled scraping |
+| httpx | Async HTTP client |
+| Playwright | Browser automation (Arc.dev) |
+| feedparser | RSS parsing (WeWorkRemotely) |
+| beautifulsoup4 | HTML parsing (V2EX, Yuancheng) |
+| Pydantic v2 | Data validation |
+| loguru | Structured logging |
+| python-jose | JWT handling |
+| fake-useragent | User-Agent rotation |
+
+### Frontend
+
+| Library | Purpose |
+|---------|---------|
+| Next.js 16 | React framework (App Router) |
+| TypeScript | Type safety |
+| Tailwind CSS | Utility-first styling |
+| shadcn/ui | UI component library |
+| Supabase JS | Auth + database client |
+
+### Infrastructure
+
+| Tool | Purpose |
+|------|---------|
+| Docker Compose | Multi-container orchestration |
+| nginx | Reverse proxy |
+| uvicorn | ASGI server |
+
+## Environment Variables
+
+### Backend (`.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_KEY` | Yes | Supabase service role key |
+| `SUPABASE_JWT_SECRET` | Yes | JWT verification secret |
+| `WORKGO_COOKIE` | No | Clerk `__client` cookie for WorkGo |
+| `LOG_LEVEL` | No | Logging level (default: INFO) |
+
+### Frontend (`.env.local`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
+| `NEXT_PUBLIC_API_URL` | No | Backend API URL (default: `/api`) |
 
 ## Roadmap
 
-### Phase 1 (Complete)
-- ✓ RemoteOK, Eleduck, WeWorkRemotely sources
-- ✓ Keyword matching with CJK support
-- ✓ SQLite storage with deduplication
-- ✓ JSON export
-- ✓ CLI with scrape/stats/export commands
+### Phase 1 ✅
+- RemoteOK, Eleduck, WeWorkRemotely adapters
+- Keyword matching with CJK support
+- Cross-site deduplication
+- Async architecture (httpx, asyncpg)
 
-### Phase 2 (Complete)
-- ✓ Async migration (httpx.AsyncClient + aiosqlite)
-- ✓ V2EX job board integration (hybrid HTML+API)
-- ✓ Arc.dev integration (Playwright browser automation)
-- ✓ WorkGo integration (API with Clerk cookie auth)
-- ✓ 远程.work integration (HTML scraping, disabled — domain redirects)
-- ✓ Cross-site deduplication
-- ✓ Concurrent scraping with asyncio.gather
+### Phase 2 ✅
+- V2EX, Arc.dev, WorkGo, 远程.work adapters
+- Concurrent scraping with asyncio.gather
+- Browser automation with Playwright
 
-### Phase 3
-- Email/Slack notifications for new matches
-- Docker containerization
+### Phase 3 ✅
+- FastAPI backend with Supabase PostgreSQL
+- Next.js 16 frontend with shadcn/ui
+- Docker Compose deployment (backend + frontend + nginx)
+- Supabase Auth with JWT and RLS
+- Job favorites, subscriptions, notifications
+- Admin dashboard for scraper management
+- APScheduler for automated 2-hour scraping
 
-### Phase 4
-- Job scoring and ranking
-- Notion database integration
+### Future
+- Job scoring and ranking algorithms
+- Advanced search filters (salary, experience, location)
+- Telegram/Slack notifications
+- Email digest subscriptions
+- Analytics dashboard
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License

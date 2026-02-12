@@ -1,39 +1,21 @@
 """Keyword matching utilities for job filtering."""
 
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-import yaml
 
 
 class KeywordMatcher:
     """Matches job postings against keyword groups with smart boundary detection."""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None, config_path: Optional[str] = None):
-        """Initialize matcher with config dict or load from yaml file.
+    def __init__(self, keyword_groups: Dict[str, List[str]], match_rules: Dict[str, Any]):
+        """Initialize matcher with config dicts.
         
         Args:
-            config: Config dict with keyword_groups and match_rules
-            config_path: Path to keywords.yaml file
+            keyword_groups: Dict mapping group names to lists of keywords
+            match_rules: Dict with match rules (e.g., skip_location_for)
         """
-        loaded_config: Dict[str, Any]
-        
-        if config is None:
-            if config_path is None:
-                # Default to config/keywords.yaml relative to project root
-                project_root = Path(__file__).parent.parent.parent
-                config_path = str(project_root / "config" / "keywords.yaml")
-            
-            with open(config_path, 'r', encoding='utf-8') as f:
-                loaded_config = yaml.safe_load(f)
-                if loaded_config is None:
-                    raise ValueError("Failed to load config from yaml file")
-        else:
-            loaded_config = config
-        
-        self.keyword_groups = loaded_config['keyword_groups']
-        self.match_rules = loaded_config['match_rules']
+        self.keyword_groups = keyword_groups
+        self.match_rules = match_rules
         self.skip_location_for = set(self.match_rules.get('skip_location_for', []))
         
         # Precompile regex patterns for efficiency

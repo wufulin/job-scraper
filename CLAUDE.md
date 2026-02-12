@@ -27,7 +27,7 @@ Pipeline: `FastAPI (app/main.py) → Orchestrator (async) → Adapters (concurre
   - `app/services/`: Business logic (SupabaseStorage, JobService, ScraperService, etc.)
   - `app/models/`: Pydantic request/response models
   
-- **Adapters** (`scraper/adapters/`): BaseAdapter ABC with `async fetch_jobs() → list[JobPosting]`.
+- **Adapters** (`app/scraper/adapters/`): BaseAdapter ABC with `async fetch_jobs() → list[JobPosting]`.
   Seven implementations across 5 modules:
   - `api.py`: RemoteOKAdapter (JSON API), EleduckAdapter (JSON API, paginated), WorkGoAdapter (JSON API, Clerk cookie auth)
   - `rss.py`: WeWorkRemotelyAdapter (RSS feed)
@@ -36,16 +36,16 @@ Pipeline: `FastAPI (app/main.py) → Orchestrator (async) → Adapters (concurre
   - `html.py`: YuanchengAdapter (BeautifulSoup, disabled — domain dead)
   Registry in `orchestrator.py::_ADAPTER_MAP` dict — add new adapters here.
   
-- **Matcher** (`scraper/utils/matcher.py`): AND between keyword groups, OR within groups.
+- **Matcher** (`app/scraper/utils/matcher.py`): AND between keyword groups, OR within groups.
   Short English keywords (≤3 chars, alphanumeric) use `\b` word-boundary. CJK uses substring. Patterns precompiled at init.
   
 - **Storage** (`app/services/storage.py`): SupabaseStorage using asyncpg. PostgreSQL with RLS policies.
   - `SupabaseStorage`: Async storage with connection pooling
   - `FakeStorage` (`tests/fakes/storage.py`): In-memory storage for tests
   
-- **Dedup** (`scraper/utils/dedup.py`): Cross-site deduplication using `difflib.SequenceMatcher`. Compares company+title similarity. Runs after matching, before storage.
+- **Dedup** (`app/scraper/utils/dedup.py`): Cross-site deduplication using `difflib.SequenceMatcher`. Compares company+title similarity. Runs after matching, before storage.
 
-- **Models** (`scraper/models.py`): Single Pydantic v2 `JobPosting` model. ID = MD5 of `url|title`.
+- **Models** (`app/scraper/models.py`): Single Pydantic v2 `JobPosting` model. ID = MD5 of `url|title`.
   - `to_pg_dict()`: Serialize for PostgreSQL
   - `from_pg_row()`: Deserialize from PostgreSQL row
 
@@ -76,7 +76,7 @@ Pipeline: `FastAPI (app/main.py) → Orchestrator (async) → Adapters (concurre
 - **RemoteOK API**: First element of JSON array is always a legal notice — must skip `data[1:]`
 - **SupabaseStorage init**: Must call `await storage.init_pool()` before using, and `await storage.close_pool()` on shutdown
 - **`JobPosting.url` is `str`**, not `HttpUrl` — intentional for database compatibility
-- **Config paths**: `config/sites.yaml` and `config/keywords.yaml` still used by orchestrator for adapter configuration
+- **Config**: Sites and keywords stored in Supabase database via `app/services/config_service.py` — no YAML files
 - **Eleduck company**: Extracted from `user.nickname` field, not a top-level field
 - **WWR title format**: RSS titles are "Company: Job Title" — split on first ": "
 - **Env vars** in `.env`: DATABASE_URL, SUPABASE_* required for backend. NEXT_PUBLIC_* required for frontend.
@@ -85,11 +85,10 @@ Pipeline: `FastAPI (app/main.py) → Orchestrator (async) → Adapters (concurre
 - **V2EX rate limiting**: Uses 6s delay between requests; HTML listing page + individual JSON API calls per topic
 - **V2EX topic detail**: Fetched via `v2ex.com/api/topics/show.json?id=N`, content is in `content_rendered` (HTML)
 - **Arc.dev SSR data**: Job data embedded in `window.__NEXT_DATA__.props.pageProps.arcJobs` — extracted via Playwright `page.evaluate()`
-- **WorkGo disabled**: `enabled: false` in sites.yaml — requires WORKGO_COOKIE env var (Clerk __client cookie from browser after Google OAuth login)
+- **WorkGo disabled**: `enabled: false` in database config — requires WORKGO_COOKIE env var (Clerk __client cookie from browser after Google OAuth login)
 - **Yuancheng disabled**: `enabled: false` — domain `yuancheng.work` redirects to `arc.dev`, adapter returns [] on redirect
 - **Async orchestrator**: Uses `asyncio.gather()` with `asyncio.Semaphore(3)` for concurrent adapter execution
 - **Cross-site dedup**: `DedupManager.deduplicate()` runs after matching, before storage — removes fuzzy duplicates across sources
-- **aiosqlite init**: `__init__` can't be async, so schema DDL uses `aiosqlite.core.sqlite3` (underlying sync module) for init
 
 ## Testing
 

@@ -27,7 +27,6 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "feedparser>=6.0.0",
     "fake-useragent>=1.5.0",
-    "pyyaml>=6.0",
     "loguru>=0.7.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
@@ -49,7 +48,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["scraper", "scraper.adapters", "scraper.utils", "app", "app.config", "app.routers", "app.services", "app.models"]
+packages = ["app", "app.scraper", "app.scraper.adapters", "app.scraper.utils", "app.routers", "app.services", "app.models"]
 
 [tool.setuptools.package-data]
 config = ["*.yaml"]
