@@ -8,7 +8,7 @@ from loguru import logger
 from app.config.settings import settings
 from app.services.scrape_run_service import get_scrape_run_service
 from app.services.storage import SupabaseStorage
-from scraper.orchestrator import ScraperOrchestrator
+from app.scraper.orchestrator import ScraperOrchestrator
 
 _storage: SupabaseStorage | None = None
 
