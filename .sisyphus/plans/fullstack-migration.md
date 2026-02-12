@@ -76,13 +76,13 @@
 - DB seed 脚本（初始站点和关键词配置）
 
 ### Definition of Done
-- [ ] FastAPI 启动并提供 /docs OpenAPI 文档
-- [ ] 所有 292+ adapter/matcher/dedup 测试通过（不修改）
-- [ ] 爬虫通过 API 端点触发并存储结果到 Supabase
-- [ ] 用户可注册/登录，收藏职位，设置订阅
-- [ ] 前端展示职位列表、详情、统计仪表盘
-- [ ] Docker Compose 一键启动所有服务
-- [ ] 深色/浅色主题切换正常
+- [x] FastAPI 启动并提供 /docs OpenAPI 文档
+- [x] 所有 292+ adapter/matcher/dedup 测试通过（不修改）
+- [x] 爬虫通过 API 端点触发并存储结果到 Supabase
+- [x] 用户可注册/登录，收藏职位，设置订阅
+- [x] 前端展示职位列表、详情、统计仪表盘
+- [x] Docker Compose 一键启动所有服务
+- [x] 深色/浅色主题切换正常
 
 ### Must Have
 - FastAPI REST API 替代所有 CLI 功能
@@ -1265,7 +1265,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 13. Favorites + Subscriptions API
+- [x] 13. Favorites + Subscriptions API
 
   **What to do**:
   - Create `app/routers/favorites.py`:
@@ -1333,7 +1333,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 14. Notifications Service (In-App + Email)
+- [x] 14. Notifications Service (In-App + Email)
 
   **What to do**:
   - Create `app/services/notification_service.py`:
@@ -1406,7 +1406,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ### Phase 4: Frontend Core (New Repository)
 
-- [ ] 15. Next.js 16 Project Initialization
+- [x] 15. Next.js 16 Project Initialization
 
   **What to do**:
   - Initialize new Next.js 16 project: `npx create-next-app@latest job-scraper-web --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"`
@@ -1510,7 +1510,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 16. Auth Pages (Login, Register, OAuth)
+- [x] 16. Auth Pages (Login, Register, OAuth)
 
   **What to do**:
   - Create login page: `src/app/(auth)/login/page.tsx`
@@ -1595,7 +1595,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 17. Job Listing Page (Server Component + Search/Filter)
+- [x] 17. Job Listing Page (Server Component + Search/Filter)
 
   **What to do**:
   - Create job listing page: `src/app/jobs/page.tsx` (Server Component)
@@ -1681,7 +1681,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 18. Job Detail Page
+- [x] 18. Job Detail Page
 
   **What to do**:
   - Create detail page: `src/app/jobs/[id]/page.tsx` (Server Component)
@@ -1744,7 +1744,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 19. Stats Dashboard
+- [x] 19. Stats Dashboard
 
   **What to do**:
   - Create dashboard page: `src/app/dashboard/page.tsx`
@@ -1808,7 +1808,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ### Phase 5: Frontend Features + Deployment
 
-- [ ] 20. Favorites + Subscriptions UI
+- [x] 20. Favorites + Subscriptions UI
 
   **What to do**:
   - Create favorites page: `src/app/favorites/page.tsx`
@@ -1874,7 +1874,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 21. Notification Center
+- [x] 21. Notification Center
 
   **What to do**:
   - Create notification bell in header: `src/components/layout/NotificationBell.tsx`
@@ -1941,7 +1941,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 22. Scraper Admin Console
+- [x] 22. Scraper Admin Console
 
   **What to do**:
   - Create admin page: `src/app/admin/page.tsx` (admin only, redirect non-admins)
@@ -2014,7 +2014,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 23. Dark/Light Theme Polish
+- [x] 23. Dark/Light Theme Polish
 
   **What to do**:
   - Ensure `next-themes` provider set up correctly (Task 15 started this)
@@ -2083,7 +2083,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 24. Docker Compose Deployment
+- [x] 24. Docker Compose Deployment
 
   **What to do**:
   - Create `Dockerfile.backend` in backend repo:
@@ -2171,7 +2171,7 @@ Phase 5 — Frontend Features + Deployment:
 
 ---
 
-- [ ] 25. Data Migration (SQLite → Supabase)
+- [x] 25. Data Migration (SQLite → Supabase)
 
   **What to do**:
   - Create `scripts/migrate_sqlite_to_supabase.py`:
@@ -2306,13 +2306,13 @@ docker compose down
 ```
 
 ### Final Checklist
-- [ ] All "Must Have" items present
-- [ ] All "Must NOT Have" items absent
-- [ ] 292+ adapter/matcher/dedup tests pass unchanged
-- [ ] All new TDD tests pass
-- [ ] Supabase schema created with RLS policies
-- [ ] Auth flow works (register, login, protected routes)
-- [ ] Frontend 6 modules functional
-- [ ] Dark/light theme works
-- [ ] Docker Compose deploys successfully
-- [ ] Data migration script works
+- [x] All "Must Have" items present
+- [x] All "Must NOT Have" items absent
+- [x] 292+ adapter/matcher/dedup tests pass unchanged
+- [x] All new TDD tests pass
+- [x] Supabase schema created with RLS policies
+- [x] Auth flow works (register, login, protected routes)
+- [x] Frontend 6 modules functional
+- [x] Dark/light theme works
+- [x] Docker Compose deploys successfully
+- [x] Data migration script works

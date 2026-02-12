@@ -116,6 +116,8 @@ class SupabaseStorage:
     async def get_stats(self) -> dict:
         assert self._pool is not None, "Pool not initialised — call init_pool() first"
         total = await self._pool.fetchval("SELECT COUNT(*) FROM jobs")
+        active = await self._pool.fetchval("SELECT COUNT(*) FROM jobs WHERE is_active = true")
+        inactive = await self._pool.fetchval("SELECT COUNT(*) FROM jobs WHERE is_active = false")
         rows = await self._pool.fetch(
             "SELECT source, COUNT(*) AS count FROM jobs "
             "WHERE is_active = true GROUP BY source"
@@ -123,6 +125,8 @@ class SupabaseStorage:
         by_source = {r["source"]: r["count"] for r in rows}
         return {
             "total": total,
+            "active": active,
+            "inactive": inactive,
             "by_source": by_source,
         }
 

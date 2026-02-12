@@ -21,5 +21,12 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # SMTP settings for email notifications
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    FROM_EMAIL: str = ""
+
 
 settings = Settings()

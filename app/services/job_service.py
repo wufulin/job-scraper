@@ -1,19 +1,44 @@
-# Temporary: wraps StorageManager until Supabase migration (Phase 2)
 from __future__ import annotations
 
+import json
 import math
 from typing import Optional
 
-from scraper.models import JobPosting
-from scraper.utils.storage import StorageManager
-
 from app.models.responses import JobListResponse, JobResponse, PaginationMeta
+from app.services.storage import SupabaseStorage
+
+# Module-level storage singleton (initialized during app lifespan)
+_storage: SupabaseStorage | None = None
+
+
+async def init_job_storage() -> None:
+    """Initialize the job storage pool."""
+    global _storage
+    from app.config.settings import settings
+    if settings.DATABASE_URL and _storage is None:
+        _storage = SupabaseStorage()
+        await _storage.init_pool()
+
+
+async def close_job_storage() -> None:
+    """Close the job storage pool."""
+    global _storage
+    if _storage:
+        await _storage.close_pool()
+        _storage = None
+
+
+def get_job_storage() -> SupabaseStorage:
+    """Get the initialized storage instance."""
+    if _storage is None:
+        raise RuntimeError("Job storage not initialized. Call init_job_storage() during app startup.")
+    return _storage
 
 
 class JobService:
 
-    def __init__(self, storage: Optional[StorageManager] = None) -> None:
-        self._storage = storage or StorageManager()
+    def __init__(self, storage: Optional[SupabaseStorage] = None) -> None:
+        self._storage = storage or get_job_storage()
 
     async def list_jobs(
         self,
@@ -21,10 +46,7 @@ class JobService:
         per_page: int = 20,
         source: Optional[str] = None,
     ) -> JobListResponse:
-        all_jobs = await self._storage.get_all_jobs(active_only=True)
-
-        if source:
-            all_jobs = [j for j in all_jobs if j.source == source]
+        all_jobs = await self._storage.get_all_jobs(source=source)
 
         total = len(all_jobs)
         total_pages = max(1, math.ceil(total / per_page))
@@ -44,10 +66,9 @@ class JobService:
         )
 
     async def get_job(self, job_id: str) -> Optional[JobResponse]:
-        all_jobs = await self._storage.get_all_jobs(active_only=True)
-        for job in all_jobs:
-            if job.id == job_id:
-                return self._to_response(job)
+        job = await self._storage.get_job_by_id(job_id)
+        if job:
+            return self._to_response(job)
         return None
 
     async def search_jobs(
@@ -57,18 +78,21 @@ class JobService:
         per_page: int = 20,
         source: Optional[str] = None,
     ) -> JobListResponse:
-        all_jobs = await self._storage.get_all_jobs(active_only=True)
-
-        if source:
-            all_jobs = [j for j in all_jobs if j.source == source]
+        all_jobs = await self._storage.get_all_jobs(source=source)
 
         q_lower = query.lower()
-        matched = [
-            j
-            for j in all_jobs
-            if q_lower in (j.title or "").lower()
-            or q_lower in (j.description or "").lower()
-        ]
+        matched = []
+        for j in all_jobs:
+            if hasattr(j, "title"):
+                # JobPosting object
+                title = j.title or ""
+                description = j.description or ""
+            else:
+                # dict
+                title = j.get("title") or ""
+                description = j.get("description") or ""
+            if q_lower in title.lower() or q_lower in description.lower():
+                matched.append(j)
 
         total = len(matched)
         total_pages = max(1, math.ceil(total / per_page))
@@ -88,20 +112,17 @@ class JobService:
         )
 
     @staticmethod
-    def _to_response(job: JobPosting) -> JobResponse:
-        return JobResponse(
-            id=job.id,
-            title=job.title,
-            company=job.company,
-            url=job.url,
-            source=job.source,
-            published_at=job.published_at,
-            salary=job.salary,
-            location=job.location,
-            description=job.description,
-            tags=job.tags,
-            first_seen=job.first_seen,
-            last_seen=job.last_seen,
-            last_updated=job.last_updated,
-            update_count=job.update_count,
-        )
+    def _to_response(job):
+        # Handle both dict (from SupabaseStorage) and JobPosting (from tests/mocks)
+        if hasattr(job, "model_dump"):
+            # It's a JobPosting or similar Pydantic model
+            return JobResponse(**job.model_dump())
+        else:
+            # It's a dict from SupabaseStorage
+            # Handle tags which may be JSON string from Supabase
+            tags = job.get("tags", [])
+            if isinstance(tags, str):
+                tags = json.loads(tags)
+            data = dict(job)
+            data["tags"] = tags
+            return JobResponse(**data)

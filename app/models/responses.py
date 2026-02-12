@@ -121,3 +121,111 @@ class KeywordCreate(BaseModel):
 
 class KeywordUpdate(BaseModel):
     enabled: Optional[bool] = None
+
+
+# ---------------------------------------------------------------------------
+# Favorites models
+# ---------------------------------------------------------------------------
+
+
+class FavoriteResponse(BaseModel):
+    """Single favorite response."""
+
+    id: int
+    user_id: str
+    job_id: str
+    created_at: datetime
+
+
+class FavoriteListResponse(BaseModel):
+    """Paginated list of favorites with metadata."""
+
+    data: list[FavoriteResponse]
+    pagination: PaginationMeta
+
+
+class AddFavoriteRequest(BaseModel):
+    """Request body to add a job to favorites."""
+
+    job_id: str
+
+
+# ---------------------------------------------------------------------------
+# Subscriptions models
+# ---------------------------------------------------------------------------
+
+
+class SubscriptionResponse(BaseModel):
+    """Single subscription response."""
+
+    id: int
+    user_id: str
+    name: str
+    keywords: list[str]
+    match_mode: str = "any"
+    sources: list[str] = []
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
+
+
+class SubscriptionListResponse(BaseModel):
+    """Paginated list of subscriptions with metadata."""
+
+    data: list[SubscriptionResponse]
+    pagination: PaginationMeta
+
+
+class CreateSubscriptionRequest(BaseModel):
+    """Request body to create a subscription."""
+
+    name: str
+    keywords: list[str]
+    match_mode: str = "any"
+    sources: list[str] = []
+
+
+class UpdateSubscriptionRequest(BaseModel):
+    """Request body to update a subscription."""
+
+    name: Optional[str] = None
+    keywords: Optional[list[str]] = None
+    match_mode: Optional[str] = None
+    sources: Optional[list[str]] = None
+    is_active: Optional[bool] = None
+
+
+class ToggleSubscriptionRequest(BaseModel):
+    """Request body to toggle subscription active status."""
+
+    is_active: bool
+
+
+# ---------------------------------------------------------------------------
+# Notifications models
+# ---------------------------------------------------------------------------
+
+
+class NotificationResponse(BaseModel):
+    """Single notification response."""
+
+    id: str
+    user_id: str
+    type: str
+    title: str
+    body: Optional[str] = None
+    job_id: Optional[str] = None
+    is_read: bool = False
+    email_sent: bool = False
+    created_at: datetime
+
+
+class NotificationListResponse(BaseModel):
+    """Paginated list of notifications with metadata."""
+
+    data: list[NotificationResponse]
+    pagination: PaginationMeta
+
+
+class UnreadCountResponse(BaseModel):
+    count: int

@@ -56,6 +56,8 @@ class FakeStorage:
             by_source[src] = by_source.get(src, 0) + 1
         return {
             "total": len(self._jobs),
+            "active": len(self._jobs),
+            "inactive": 0,
             "by_source": by_source,
         }
 
@@ -64,6 +66,19 @@ class FakeStorage:
 
     async def health_check(self) -> bool:
         return self._healthy
+
+    async def export_json(self, filepath: str) -> None:
+        import json
+        from datetime import datetime
+
+        def json_serial(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+
+        jobs = await self.get_all_jobs()
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(jobs, f, ensure_ascii=False, indent=2, default=json_serial)
 
     @staticmethod
     def _job_to_row(job: JobPosting) -> dict:
