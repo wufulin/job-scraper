@@ -9,7 +9,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useRequireAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 import {
   fetchSubscriptions,
@@ -33,7 +33,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export default function SubscriptionsPage() {
-  const { user } = useAuth();
+  const { user, authenticated } = useRequireAuth();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +57,8 @@ export default function SubscriptionsPage() {
   }, []);
 
   useEffect(() => {
-    if (user) loadSubscriptions();
-  }, [user, loadSubscriptions]);
+    if (authenticated) loadSubscriptions();
+  }, [authenticated, loadSubscriptions]);
 
   const handleToggle = useCallback(
     async (sub: Subscription) => {
