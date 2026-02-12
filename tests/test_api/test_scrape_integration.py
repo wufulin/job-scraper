@@ -126,13 +126,17 @@ class TestScraperServiceStorageInjection:
         svc = ScraperService(storage=storage)
         assert svc._orchestrator.storage is storage
 
-    def test_service_defaults_to_sqlite_without_storage(self) -> None:
-        from app.services.scraper_service import ScraperService
+    def test_service_requires_storage_or_module_storage(self) -> None:
+        import app.services.scraper_service as mod
 
-        from scraper.utils.storage import StorageManager
-
-        svc = ScraperService()
-        assert isinstance(svc._orchestrator.storage, StorageManager)
+        original_storage = mod._storage
+        try:
+            mod._storage = None
+            with pytest.raises(ValueError):
+                from app.services.scraper_service import ScraperService
+                ScraperService()
+        finally:
+            mod._storage = original_storage
 
     def test_get_scraper_service_uses_module_storage(self) -> None:
         import app.services.scraper_service as mod

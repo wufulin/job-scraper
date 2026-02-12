@@ -8,6 +8,7 @@ from loguru import logger
 
 from app.services.scrape_run_service import get_scrape_run_service
 from app.services.scraper_service import get_scraper_service
+from app.services.notification_service import NotificationService
 
 _scheduler: SchedulerService | None = None
 
@@ -91,9 +92,46 @@ class SchedulerService:
                     updated=summary.get("updated", 0),
                 )
                 logger.info("Scheduled scrape completed — run_id={}, summary={}", run_id, summary)
+
+                if summary.get("new", 0) > 0:
+                    await self._check_notifications_after_scrape()
             except Exception as exc:
                 await run_service.fail_run(run_id, error=str(exc))
                 logger.error("Scheduled scrape failed — run_id={}, error={}", run_id, exc)
+
+
+    async def _check_notifications_after_scrape(self) -> None:
+        try:
+            import asyncpg
+            from app.config.settings import settings
+
+            pool = await asyncpg.create_pool(settings.DATABASE_URL)
+            try:
+                rows = await pool.fetch(
+                    "SELECT id, title, company, description, source "
+                    "FROM jobs WHERE first_seen > NOW() - INTERVAL '10 minutes'"
+                )
+                if not rows:
+                    return
+
+                new_jobs = [
+                    {
+                        "id": row["id"],
+                        "title": row["title"],
+                        "company": row["company"],
+                        "description": row["description"],
+                        "source": row["source"],
+                    }
+                    for row in rows
+                ]
+
+                svc = NotificationService(pool=pool)
+                created = await svc.check_subscriptions_after_scrape(new_jobs)
+                logger.info("Post-scrape notification check — {} created", created)
+            finally:
+                await pool.close()
+        except Exception:
+            logger.exception("Failed to check subscriptions after scrape")
 
 
 def get_scheduler_service() -> SchedulerService:

@@ -16,7 +16,6 @@ from scraper.adapters.rss import WeWorkRemotelyAdapter
 from scraper.models import JobPosting
 from scraper.utils.dedup import DedupManager
 from scraper.utils.matcher import KeywordMatcher
-from scraper.utils.storage import StorageManager
 
 # Mapping of site_id → adapter class
 _ADAPTER_MAP: dict[str, type[BaseAdapter]] = {
@@ -37,7 +36,6 @@ class ScraperOrchestrator:
         self,
         sites_config_path: str = "config/sites.yaml",
         keywords_config_path: str = "config/keywords.yaml",
-        db_path: str = "data/jobs.db",
         storage: object | None = None,
     ) -> None:
         """Initialize orchestrator with config paths.
@@ -45,8 +43,7 @@ class ScraperOrchestrator:
         Args:
             sites_config_path: Path to sites.yaml
             keywords_config_path: Path to keywords.yaml
-            db_path: Path to SQLite database (used if storage not provided)
-            storage: Optional storage instance implementing StorageProtocol
+            storage: Storage instance implementing StorageProtocol (required)
         """
         # Load sites config
         with open(sites_config_path, "r", encoding="utf-8") as f:
@@ -55,7 +52,9 @@ class ScraperOrchestrator:
 
         # Create matcher and storage
         self.matcher = KeywordMatcher(config_path=keywords_config_path)
-        self.storage = storage if storage is not None else StorageManager(db_path=db_path)
+        if storage is None:
+            raise ValueError("Storage must be provided")
+        self.storage = storage
 
         # Interrupt flag for graceful Ctrl+C
         self.interrupted = False

@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    volumes:
+      - ./app:/app/app
+      - ./scraper:/app/scraper
+      - ./config:/app/config
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DEBUG=true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    command: pnpm dev
+    environment:
+      - NODE_ENV=development
+
+  nginx:
+    ports:
+      - "80:80"

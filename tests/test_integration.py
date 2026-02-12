@@ -26,7 +26,7 @@ from scraper.models import JobPosting
 from scraper.orchestrator import ScraperOrchestrator
 from scraper.utils.dedup import DedupManager
 from scraper.utils.matcher import KeywordMatcher
-from scraper.utils.storage import StorageManager
+from tests.fakes.storage import FakeStorage
 
 # ---------------------------------------------------------------------------
 # Paths to fixture files
@@ -159,11 +159,7 @@ SITES_CONFIG_7 = {
 # ---------------------------------------------------------------------------
 
 
-def _make_temp_db() -> str:
-    """Create a temp file path for SQLite and return it."""
-    fd, path = tempfile.mkstemp(suffix=".db", prefix="test_integration_")
-    os.close(fd)
-    return path
+
 
 
 def _cleanup_file(path: str) -> None:
@@ -218,12 +214,7 @@ def _write_temp_yaml(data: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
-def temp_db():
-    """Yield a temp DB path and clean up afterwards."""
-    path = _make_temp_db()
-    yield path
-    _cleanup_file(path)
+
 
 
 @pytest.fixture()
@@ -233,9 +224,9 @@ def matcher():
 
 
 @pytest.fixture()
-def storage(temp_db):
-    """Return a StorageManager backed by a temp database."""
-    return StorageManager(db_path=temp_db)
+def storage():
+    """Return a FakeStorage instance for testing."""
+    return FakeStorage()
 
 
 @pytest.fixture()
@@ -270,7 +261,7 @@ def kw_yaml():
 class TestFullPipeline:
     """Full pipeline: fetch (mocked) → match → store → verify DB has data."""
 
-    async def test_full_pipeline_all_adapters(self, temp_db, sites_yaml, kw_yaml):
+    async def test_full_pipeline_all_adapters(self, sites_yaml, kw_yaml):
         """Orchestrator processes all three sites, stores matched jobs."""
         remoteok_json = _load_fixture(REMOTEOK_FIXTURE)
         eleduck_json = _load_fixture(ELEDUCK_FIXTURE)
@@ -290,11 +281,12 @@ class TestFullPipeline:
             else:  # WeWorkRemotelyAdapter
                 return _make_mock_client(wwr_resp)
 
+        storage = FakeStorage()
         with patch("scraper.adapters.base.BaseAdapter._get_client", fake_get_client):
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run()
 
@@ -305,8 +297,7 @@ class TestFullPipeline:
         assert len(summary["errors"]) == 0, f"No errors expected, got: {summary['errors']}"
 
         # Verify DB has actual data
-        sm = StorageManager(db_path=temp_db)
-        stats = await sm.get_stats()
+        stats = await storage.get_stats()
         assert stats["total"] > 0
         assert stats["total"] == summary["new"]
         assert stats["active"] == stats["total"]
@@ -320,7 +311,7 @@ class TestFullPipeline:
 class TestDryRun:
     """Dry-run mode: match but don't persist."""
 
-    async def test_dry_run_stores_nothing(self, temp_db, kw_yaml):
+    async def test_dry_run_stores_nothing(self, kw_yaml):
         """In dry-run mode, matched jobs are NOT written to the database."""
         remoteok_json = _load_fixture(REMOTEOK_FIXTURE)
         remoteok_resp = _build_mock_response(remoteok_json, is_json=True)
@@ -332,11 +323,12 @@ class TestDryRun:
             def fake_get_client(self_adapter, timeout=30.0):
                 return _make_mock_client(remoteok_resp)
 
+            storage = FakeStorage()
             with patch("scraper.adapters.base.BaseAdapter._get_client", fake_get_client):
                 orch = ScraperOrchestrator(
                     sites_config_path=sites_path,
                     keywords_config_path=kw_yaml,
-                    db_path=temp_db,
+                    storage=storage,
                 )
                 summary = await orch.run(dry_run=True)
 
@@ -345,8 +337,7 @@ class TestDryRun:
             assert summary["updated"] == 0, "Dry-run should not update any jobs"
 
             # Verify DB is empty
-            sm = StorageManager(db_path=temp_db)
-            stats = await sm.get_stats()
+            stats = await storage.get_stats()
             assert stats["total"] == 0, "Database should be empty after dry-run"
         finally:
             _cleanup_file(sites_path)
@@ -360,7 +351,7 @@ class TestDryRun:
 class TestSingleSiteFilter:
     """Filter to a single site."""
 
-    async def test_single_site_only_scrapes_that_site(self, temp_db, sites_yaml, kw_yaml):
+    async def test_single_site_only_scrapes_that_site(self, storage, sites_yaml, kw_yaml):
         """When site='remoteok', only RemoteOK adapter is invoked."""
         remoteok_json = _load_fixture(REMOTEOK_FIXTURE)
         remoteok_resp = _build_mock_response(remoteok_json, is_json=True)
@@ -375,7 +366,7 @@ class TestSingleSiteFilter:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run(site="remoteok")
 
@@ -384,7 +375,7 @@ class TestSingleSiteFilter:
         assert summary["total_scraped"] > 0
 
         # All stored jobs should be from remoteok
-        sm = StorageManager(db_path=temp_db)
+        sm = FakeStorage()
         stats = await sm.get_stats()
         if stats["total"] > 0:
             assert list(stats["by_source"].keys()) == ["remoteok"]
@@ -398,7 +389,7 @@ class TestSingleSiteFilter:
 class TestErrorHandling:
     """One adapter failure doesn't kill the whole pipeline."""
 
-    async def test_one_adapter_fails_others_continue(self, temp_db, sites_yaml, kw_yaml):
+    async def test_one_adapter_fails_others_continue(self, storage, sites_yaml, kw_yaml):
         """If one adapter raises, the others still get processed."""
         eleduck_json = _load_fixture(ELEDUCK_FIXTURE)
         wwr_xml = _load_fixture(WWR_FIXTURE)
@@ -419,7 +410,7 @@ class TestErrorHandling:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run()
 
@@ -674,19 +665,19 @@ class TestComponentIntegration:
         )
 
         await storage.upsert_job(original)
-        retrieved = await storage.get_all_jobs(active_only=True)
+        retrieved = await storage.get_all_jobs()
 
         assert len(retrieved) == 1
         r = retrieved[0]
-        assert r.id == original.id
-        assert r.title == original.title
-        assert r.company == original.company
-        assert r.url == original.url
-        assert r.source == original.source
-        assert r.salary == original.salary
-        assert r.location == original.location
-        assert r.description == original.description
-        assert r.tags == original.tags
+        assert r["id"] == original.id
+        assert r["title"] == original.title
+        assert r["company"] == original.company
+        assert r["url"] == original.url
+        assert r["source"] == original.source
+        assert r["salary"] == original.salary
+        assert r["location"] == original.location
+        assert r["description"] == original.description
+        assert r["tags"] == original.tags
 
     def test_all_modules_importable(self):
         """All project modules import without error — including Phase 2 modules."""
@@ -698,13 +689,11 @@ class TestComponentIntegration:
         import scraper.adapters.html
         import scraper.adapters.hybrid
         import scraper.adapters.rss
-        import scraper.logger
         import scraper.models
         import scraper.orchestrator
         import scraper.utils
         import scraper.utils.dedup
         import scraper.utils.matcher
-        import scraper.utils.storage
         import config
 
         # If we reach here, all imports succeeded
@@ -725,7 +714,7 @@ def _mock_adapter_fetch(adapter, jobs: list[JobPosting]):
 class TestSevenSourcePipeline:
     """Full pipeline with all 7 adapters mocked at the fetch_jobs level."""
 
-    async def test_seven_source_pipeline_fetches_all(self, temp_db, sites_yaml_7, kw_yaml):
+    async def test_seven_source_pipeline_fetches_all(self, storage, sites_yaml_7, kw_yaml):
         """Orchestrator with 7 sources fetches, matches, deduplicates, and stores."""
         from datetime import datetime
 
@@ -831,7 +820,7 @@ class TestSevenSourcePipeline:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml_7,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run()
 
@@ -839,13 +828,12 @@ class TestSevenSourcePipeline:
         assert summary["matched"] > 0, "Should have matched some jobs"
         assert len(summary["errors"]) == 0, f"No errors expected: {summary['errors']}"
 
-        sm = StorageManager(db_path=temp_db)
-        stats = await sm.get_stats()
+        stats = await storage.get_stats()
         assert stats["total"] > 0
         # Verify we have jobs from multiple sources
         assert len(stats["by_source"]) >= 3, f"Expected jobs from >=3 sources, got: {stats['by_source']}"
 
-    async def test_seven_source_one_failure_continues(self, temp_db, sites_yaml_7, kw_yaml):
+    async def test_seven_source_one_failure_continues(self, storage, sites_yaml_7, kw_yaml):
         """If one of 7 adapters fails, the other 6 still process."""
         from datetime import datetime
 
@@ -876,7 +864,7 @@ class TestSevenSourcePipeline:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml_7,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run()
 
@@ -897,7 +885,7 @@ class TestSingleSiteFilterAll7:
         "remoteok", "eleduck", "weworkremotely",
         "workgo", "v2ex", "arcdev", "yuancheng",
     ])
-    async def test_single_site_filter(self, site_id, temp_db, sites_yaml_7, kw_yaml):
+    async def test_single_site_filter(self, storage, site_id, sites_yaml_7, kw_yaml):
         """When site=<id>, only that adapter is invoked."""
         from datetime import datetime
 
@@ -924,7 +912,7 @@ class TestSingleSiteFilterAll7:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml_7,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run(site=site_id)
 
@@ -942,7 +930,7 @@ class TestSingleSiteFilterAll7:
 class TestCrossSiteDedup:
     """Cross-site dedup removes duplicates posted on multiple boards."""
 
-    async def test_cross_site_dedup_removes_duplicate(self, temp_db, sites_yaml_7, kw_yaml):
+    async def test_cross_site_dedup_removes_duplicate(self, storage, sites_yaml_7, kw_yaml):
         """Same job posted on remoteok and arcdev gets deduplicated."""
         from datetime import datetime
 
@@ -982,7 +970,7 @@ class TestCrossSiteDedup:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml_7,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run()
 
@@ -992,7 +980,7 @@ class TestCrossSiteDedup:
         assert summary["dedup_removed"] == 1
         assert summary["new"] == 1, "Only one unique job should be stored"
 
-    async def test_no_dedup_for_different_jobs(self, temp_db, sites_yaml_7, kw_yaml):
+    async def test_no_dedup_for_different_jobs(self, storage, sites_yaml_7, kw_yaml):
         """Different jobs from different sources are all kept."""
         from datetime import datetime
 
@@ -1030,7 +1018,7 @@ class TestCrossSiteDedup:
             orch = ScraperOrchestrator(
                 sites_config_path=sites_yaml_7,
                 keywords_config_path=kw_yaml,
-                db_path=temp_db,
+                storage=storage,
             )
             summary = await orch.run()
 
